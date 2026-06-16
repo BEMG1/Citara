@@ -9,9 +9,9 @@ import { useCitationFormat } from '@/context/AppContext';
 import { FORMAT_CONFIGS } from '@/utils/citationFormats';
 
 const Header: React.FC = () => {
-  const { complianceScore, setIsComplianceModalOpen } = useDocument();
+  const { haveText, complianceScore, setIsComplianceModalOpen } = useDocument();
   const { citationFormat } = useCitationFormat();
-
+  
   return (
     <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10" style={{ background: 'var(--bg)', borderBottomColor: 'var(--border)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-4 justify-between items-center">
@@ -22,7 +22,7 @@ const Header: React.FC = () => {
 
         {/* ── Actions ── */}
         <div className="flex items-center space-x-3">
-          {complianceScore !== null && (
+          {(complianceScore !== null && haveText) && (
             <div 
               className="flex items-center gap-2.5 px-3 py-1.5 rounded-full shadow-sm animate-in fade-in duration-300 cursor-pointer hover:opacity-90 transition-opacity"
               style={{ background: 'var(--surface-3)', border: '1px solid var(--border)' }}

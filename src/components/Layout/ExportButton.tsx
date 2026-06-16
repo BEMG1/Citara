@@ -7,14 +7,14 @@ export const ExportButton: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { handleExportClick } = useExportWord();
   const { handleExportPdfClick, isExportingPdf } = useExportPDF();
-  const { isExportDisabled } = useDocument();
+  const { haveText } = useDocument();
   const { t } = useLanguage();
 
   return (
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        disabled={isExportDisabled || isExportingPdf}
+        disabled={!haveText || isExportingPdf}
         className="btn-nj primary"
       >
         <Download size={14} strokeWidth={1.8} />

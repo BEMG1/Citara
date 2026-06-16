@@ -3,6 +3,7 @@ import mammoth from 'mammoth';
 import { Upload, Trash2, Link as LinkIcon, Unlink, ChevronDown, BookOpen } from 'lucide-react';
 import { useDocument, useReferences, useLanguage, useCitationFormat, useCoverPage } from '@/context/AppContext';
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import { ReferenceMark } from './ReferenceMark';
@@ -13,6 +14,49 @@ import { ComplianceEngine } from '@/lib/ComplianceEngine/ComplianceEngine';
 import type { ComplianceReport } from '@/lib/ComplianceEngine/types';
 import { DocumentExtractor } from '@/utils/DocumentExtractor';
 
+const applyTitleCase = (text: string) => {
+  if (!text.trim()) return text;
+  const minorWords = new Set(['y', 'o', 'a', 'de', 'en', 'el', 'la', 'los', 'las', 'un', 'una', 'por', 'con', 'para', 'sin', 'del', 'al']);
+  return text.split(/\s+/).map((word, index, arr) => {
+    if (word.length === 0) return word;
+    const lower = word.toLowerCase();
+    const isFirstOrLast = index === 0 || index === arr.length - 1;
+    
+    if (isFirstOrLast || !minorWords.has(lower) || lower.length >= 4) {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }
+    return lower;
+  }).join(' ');
+};
+
+const AutoTitleCaseHeading = Extension.create({
+  name: 'autoTitleCaseHeading',
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { editor } = this;
+        const { state } = editor;
+        const { $from } = state.selection;
+        
+        const blockNode = $from.parent;
+        if (blockNode.type.name === 'heading') {
+          const start = $from.start($from.depth);
+          const end = $from.end($from.depth);
+          const text = state.doc.textBetween(start, end, ' ');
+          
+          if (text.trim()) {
+            const titleCased = applyTitleCase(text);
+            if (text !== titleCased) {
+               editor.chain().deleteRange({ from: start, to: end }).insertContentAt(start, titleCased).run();
+            }
+          }
+        }
+        return false;
+      }
+    }
+  }
+});
+
 const DocumentEditor: React.FC = () => {
   const {
     documentText: text,
@@ -21,6 +65,7 @@ const DocumentEditor: React.FC = () => {
     setDocumentTitle: onTitleChange,
     isComplianceModalOpen,
     setIsComplianceModalOpen,
+    haveText
   } = useDocument();
   const { references, setReferences } = useReferences();
   const { coverPage, setCoverPage } = useCoverPage();
@@ -49,6 +94,7 @@ const DocumentEditor: React.FC = () => {
         },
       }),
       ReferenceMark,
+      AutoTitleCaseHeading,
     ],
     content: text,
     onUpdate: ({ editor }) => {
@@ -286,6 +332,36 @@ const DocumentEditor: React.FC = () => {
 
   // --- Toolbar helpers ---
 
+  type Level = 1 | 2 | 3 | 4 | 5 | 6;
+  const handleHeadingToggle = (level: Level) => {
+    if (!editor) return;
+    const isHeading = editor.isActive('heading', { level });
+    
+    if (!isHeading) {
+      const { state } = editor;
+      const { $from } = state.selection;
+      
+      const start = $from.start($from.depth);
+      const end = $from.end($from.depth);
+      const text = state.doc.textBetween(start, end, ' ');
+      
+      if (text.trim()) {
+        const titleCased = applyTitleCase(text);
+
+        editor.chain()
+          .focus()
+          .deleteRange({ from: start, to: end })
+          .insertContentAt(start, titleCased)
+          .toggleHeading({ level })
+          .run();
+      } else {
+        editor.chain().focus().toggleHeading({ level }).run();
+      }
+    } else {
+      editor.chain().focus().toggleHeading({ level }).run();
+    }
+  };
+
   const btnBase = 'px-2 py-1 text-xs font-mono font-bold border rounded transition-colors';
   const btnIdle = 'btn-tool-idle';
   const btnActive = 'btn-tool-active';
@@ -296,6 +372,84 @@ const DocumentEditor: React.FC = () => {
 
   // Bubble menu states
   const isActiveRef = editor.isActive('reference');
+
+  const renderBubbleMenuContent = () => {
+    if (isActiveRef) {
+      return (
+        <>
+          <span className="text-xs font-medium px-2 flex items-center gap-1" style={{ color: 'var(--text-2)' }}>
+            <LinkIcon size={12} strokeWidth={1.6} />
+            {t('linkedReference')}
+          </span>
+          <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }}></div>
+          <button
+            onClick={() => editor.chain().focus().unsetReference().run()}
+            className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
+            style={{ color: 'var(--err)' }}
+          >
+            <Unlink size={12} strokeWidth={1.6} />
+            {t('removeLink')}
+          </button>
+        </>
+      );
+    }     
+    else {
+      return (
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault(); // Keep editor focus
+              setIsDropdownOpen(!isDropdownOpen);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors btn-nj ghost"
+          >
+            <LinkIcon className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+            {t('associateReference')}
+            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isDropdownOpen && (
+            <div className="absolute top-full mt-1.5 -left-2 sm:left-0 w-[280px] rounded-xl z-50 flex flex-col overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-popover)' }}>
+              <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                <BookOpen size={14} strokeWidth={1.6} style={{ color: 'var(--accent)' }} />
+                <span className="text-xs font-bold tracking-wider" style={{ color: 'var(--text-2)', fontFamily: 'var(--mono-font)' }}>
+                  {t('availableSources')}
+                </span>
+              </div>
+
+              <div className="max-h-32 overflow-y-auto p-1.5 scrollbar-thin">
+                {references.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>{t('noReferencesCreated')}</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>{t('addSourcesFromPanel')}</p>
+                  </div>
+                ) : (
+                  references.map((ref) => (
+                    <button
+                      key={ref.id}
+                      onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setReference(ref.id).run(); setIsDropdownOpen(false); }}
+                      className="w-full text-left px-3 py-2.5 rounded-lg transition-all flex flex-col gap-1"
+                      style={{ border: '1px solid transparent' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--accent-soft)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}
+                    >
+                      <span className="text-sm font-semibold line-clamp-1" style={{ color: 'var(--text)' }}>
+                        {ref.author || t('noAuthor')} ({getYear(ref.year, language)})
+                      </span>
+                      <span className="text-xs line-clamp-2 leading-snug" style={{ color: 'var(--text-2)' }}>
+                        {ref.title || t('noTitle')}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+  };
 
   return (
     <div className="flex flex-col h-full flex-1 min-h-0 relative" ref={editorContainerRef}>
@@ -317,79 +471,10 @@ const DocumentEditor: React.FC = () => {
       {/* Bubble Menu for Reference Association */}
       <BubbleMenu
         editor={editor}
-        shouldShow={({ editor, state }) => editor.isFocused && !state.selection.empty}
+        shouldShow={({ editor, state }) => haveText && editor.isFocused && !state.selection.empty}
         className="flex rounded-md p-1 gap-1 items-center z-40" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 4px 12px -4px rgba(0,0,0,.4)' }}
       >
-        {isActiveRef ? (
-          <>
-            <span className="text-xs font-medium px-2 flex items-center gap-1" style={{ color: 'var(--text-2)' }}>
-              <LinkIcon size={12} strokeWidth={1.6} />
-              {t('linkedReference')}
-            </span>
-            <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }}></div>
-            <button
-              onClick={() => editor.chain().focus().unsetReference().run()}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors"
-              style={{ color: 'var(--err)' }}
-            >
-              <Unlink size={12} strokeWidth={1.6} />
-              {t('removeLink')}
-            </button>
-          </>
-        ) : (
-          <div className="relative" ref={dropdownRef}>
-            <button
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault(); // Keep editor focus
-                setIsDropdownOpen(!isDropdownOpen);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors btn-nj ghost"
-            >
-              <LinkIcon className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-              {t('associateReference')}
-              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isDropdownOpen && (
-              <div className="absolute top-full mt-1.5 -left-2 sm:left-0 w-[280px] rounded-xl z-50 flex flex-col overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-popover)' }}>
-                <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                  <BookOpen size={14} strokeWidth={1.6} style={{ color: 'var(--accent)' }} />
-                  <span className="text-xs font-bold tracking-wider" style={{ color: 'var(--text-2)', fontFamily: 'var(--mono-font)' }}>
-                    {t('availableSources')}
-                  </span>
-                </div>
-
-                <div className="max-h-32 overflow-y-auto p-1.5 scrollbar-thin">
-                  {references.length === 0 ? (
-                    <div className="px-4 py-8 text-center">
-                      <p className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>{t('noReferencesCreated')}</p>
-                      <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>{t('addSourcesFromPanel')}</p>
-                    </div>
-                  ) : (
-                    references.map((ref) => (
-                      <button
-                        key={ref.id}
-                        onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setReference(ref.id).run(); setIsDropdownOpen(false); }}
-                        className="w-full text-left px-3 py-2.5 rounded-lg transition-all flex flex-col gap-1"
-                        style={{ border: '1px solid transparent' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--accent-soft)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; }}
-                      >
-                        <span className="text-sm font-semibold line-clamp-1" style={{ color: 'var(--text)' }}>
-                          {ref.author || t('noAuthor')} ({getYear(ref.year, language)})
-                        </span>
-                        <span className="text-xs line-clamp-2 leading-snug" style={{ color: 'var(--text-2)' }}>
-                          {ref.title || t('noTitle')}
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {renderBubbleMenuContent()}
       </BubbleMenu>
 
       {/* Upload row */}
@@ -425,7 +510,7 @@ const DocumentEditor: React.FC = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                onClick={() => handleHeadingToggle(1)}
                 className={`${btnBase} ${editor.isActive('heading', { level: 1 }) ? btnActive : btnIdle}`}
               >
                 H1
@@ -438,7 +523,7 @@ const DocumentEditor: React.FC = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                onClick={() => handleHeadingToggle(2)}
                 className={`${btnBase} ${editor.isActive('heading', { level: 2 }) ? btnActive : btnIdle}`}
               >
                 H2
@@ -451,7 +536,7 @@ const DocumentEditor: React.FC = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                onClick={() => handleHeadingToggle(3)}
                 className={`${btnBase} ${editor.isActive('heading', { level: 3 }) ? btnActive : btnIdle}`}
               >
                 H3
@@ -484,7 +569,7 @@ const DocumentEditor: React.FC = () => {
 
       {/* Editor area */}
       <div
-        className={`relative flex-1 max-h-[70vh] border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 overflow-y-auto scrollbar-thin ${isNormalized ? 'apa-normalized-doc' : ''}`}
+        className={`relative flex-1 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 overflow-y-auto scrollbar-thin focus-within:ring-2 focus-within:ring-[color:var(--accent)] focus-within:outline-none transition-shadow duration-150 ${isNormalized ? 'apa-normalized-doc' : ''}`}
         style={{ background: 'var(--surface)', border: `1px solid ${isDragging ? 'var(--accent)' : 'var(--border)'}` }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -499,7 +584,7 @@ const DocumentEditor: React.FC = () => {
         )}
         <EditorContent 
           editor={editor} 
-          className="min-h-full rounded-md focus-within:ring-2 focus-within:ring-inset focus-within:ring-[color:var(--accent)] focus-within:outline-none transition-shadow duration-150" 
+          className="min-h-full rounded-md outline-none" 
           style={{ background: 'var(--paper)', color: 'var(--paper-ink, var(--text))' }}
         />
       </div>
