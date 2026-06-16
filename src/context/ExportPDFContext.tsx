@@ -5,14 +5,8 @@ import { useCitationFormat } from "./CitationFormatContext";
 import { exportToPdf } from "@/utils/pdfExport";
 import { useCoverPage } from "./CoverPageContext";
 import { useLanguage } from "./LanguageContext";
+import type { IExportPDF } from "@/interfaces/IExportPdf";
 
-interface IExportPDF {
-  showExportPdfWarning: boolean;
-  setShowExportPdfWarning: React.Dispatch<React.SetStateAction<boolean>>;
-  handleExportPdfClick: () => void;
-  handleExportPdfAnyway: () => Promise<void>;
-  isExportingPdf: boolean;
-}
 
 const ExportPDFContext = createContext<IExportPDF | undefined>(undefined);
 

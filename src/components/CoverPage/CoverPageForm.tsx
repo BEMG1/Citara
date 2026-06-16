@@ -104,7 +104,7 @@ const FormField: React.FC<FormFieldProps> = ({ id, def, value, onChange, t }) =>
       {def.hintKey && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="cursor-help">
+            <span>
               <Info className="h-3.5 w-3.5" style={{ color: 'var(--text-3)' }} />
             </span>
           </TooltipTrigger>
@@ -207,10 +207,22 @@ const CoverPageForm: React.FC = () => {
           coverPage.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none select-none'
         }`}
       >
-        <label className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--text)' }}>
-          <ImageIcon className="h-4 w-4" style={{ color: 'var(--text-3)' }} />
-          {t('institutionalLogo') as string}
-        </label>
+        <div className="flex items-center gap-1.5">
+          <label className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--text)' }}>
+            <ImageIcon className="h-4 w-4" style={{ color: 'var(--text-3)' }} />
+            {t('institutionalLogo') as string}
+          </label>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="flex items-center">
+                <Info className="h-3.5 w-3.5" style={{ color: 'var(--text-3)' }} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('suggestionLogo') as string}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
         {coverPage.logo ? (
           <div className="flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
             <img src={coverPage.logo} alt="Logo" className="h-10 w-auto object-contain bg-white rounded p-0.5 border" style={{ borderColor: 'var(--border)' }} />

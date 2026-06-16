@@ -5,7 +5,7 @@ export interface IDocument {
   setDocumentText: React.Dispatch<React.SetStateAction<string>>;
   documentTitle: string;
   setDocumentTitle: React.Dispatch<React.SetStateAction<string>>;
-  isExportDisabled: boolean;
+  haveText: boolean;
   complianceScore: number | null;
   setComplianceScore: React.Dispatch<React.SetStateAction<number | null>>;
   isComplianceModalOpen: boolean;

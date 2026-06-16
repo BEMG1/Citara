@@ -14,7 +14,16 @@ const DocumentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [complianceScore, setComplianceScore] = React.useState<number | null>(null);
   const [isComplianceModalOpen, setIsComplianceModalOpen] = React.useState<boolean>(false);
 
-  const isExportDisabled = !documentText.trim();
+  
+  const haveText = useMemo(() => {
+    if (!documentText) return false;
+    
+    const textoLimpio = documentText
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/&nbsp;/g, '');
+    
+    return textoLimpio.trim().length > 0;
+  }, [documentText]);
 
   const value = useMemo(
     () => ({
@@ -22,13 +31,13 @@ const DocumentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setDocumentText,
       documentTitle,
       setDocumentTitle,
-      isExportDisabled,
+      haveText,
       complianceScore,
       setComplianceScore,
       isComplianceModalOpen,
       setIsComplianceModalOpen,
     }),
-    [documentText, setDocumentText, documentTitle, setDocumentTitle, isExportDisabled, complianceScore, isComplianceModalOpen]
+    [documentText, setDocumentText, documentTitle, setDocumentTitle, haveText, complianceScore, isComplianceModalOpen]
   );
 
   return (
