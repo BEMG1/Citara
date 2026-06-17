@@ -1,4 +1,3 @@
-import { useState } from "react";
 import AppProviders from "@/context/AppContext";
 import Header from "@/components/Layout/Header";
 import DocumentEditor from "@/components/documentEditor/DocumentEditor";
@@ -12,9 +11,6 @@ import { SupportWidget } from "@/components/Support/SupportWidget";
 import { useLanguage } from "@/context/AppContext";
 import { useCoverPage } from "@/context/AppContext";
 
-// ─── Tab types ─────────────────────────────────────────────────────────────────
-
-type RightPanelTab = "references" | "cover" | "settings";
 
 // ─── Right panel with tabs ─────────────────────────────────────────────────────
 
