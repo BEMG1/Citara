@@ -14,12 +14,15 @@ import { useCoverPage } from "@/context/AppContext";
 
 // ─── Tab types ─────────────────────────────────────────────────────────────────
 
-type RightPanelTab = "references" | "cover";
+type RightPanelTab = "references" | "cover" | "settings";
 
 // ─── Right panel with tabs ─────────────────────────────────────────────────────
 
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import PageSettings from "@/components/Settings/PageSettings";
+import { Settings } from "lucide-react";
+
 function RightPanel() {
-  const [activeTab, setActiveTab] = useState<RightPanelTab>("cover");
   const { coverPage } = useCoverPage();
   const { t } = useLanguage();
 
@@ -31,59 +34,63 @@ function RightPanel() {
         border: "1px solid var(--border)",
       }}
     >
-      {/* Tab bar */}
-      <div
-        className="flex px-2 pt-2 gap-1"
-        style={{ borderBottom: "1px solid var(--border)" }}
-      >
-        <button
-          id="tab-cover-page"
-          onClick={() => setActiveTab("cover")}
-          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md transition-all duration-150 border-b-2 -mb-px cursor-pointer
-            ${activeTab === "cover"
-              ? "border-[color:var(--accent)] text-[color:var(--accent)] bg-[color:var(--accent-soft)]"
-              : "border-transparent text-[color:var(--text-2)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-3)]"
-            }`}
-          style={{ fontFamily: "var(--ui-font)" }}
-          aria-selected={activeTab === "cover"}
-          role="tab"
+      <Tabs defaultValue="cover" className="flex-1 flex flex-col min-h-0">
+        {/* Tab bar */}
+        <div
+          className="flex px-2 pt-2 gap-1"
+          style={{ borderBottom: "1px solid var(--border)" }}
         >
-          <FileImage className="h-4 w-4" strokeWidth={1.6} />
-          {t("coverPageTab")}
-          {coverPage.enabled && (
-            <span
-              className="ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 text-[10px] font-bold rounded-full leading-none"
-              style={{ background: "var(--accent)", color: "var(--bg)" }}
+          <TabsList className="bg-transparent p-0 h-auto gap-1">
+            <TabsTrigger
+              value="cover"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-none rounded-t-md border-b-2 border-transparent data-[state=active]:border-[color:var(--accent)] data-[state=active]:text-[color:var(--accent)] data-[state=active]:bg-[color:var(--accent-soft)] data-[state=inactive]:text-[color:var(--text-2)] hover:data-[state=inactive]:text-[color:var(--text)] hover:data-[state=inactive]:bg-[color:var(--surface-3)] transition-all duration-150 data-[state=active]:shadow-none"
+              style={{ fontFamily: "var(--ui-font)", marginBottom: "-1px" }}
             >
-              ✓
-            </span>
-          )}
-        </button>
+              <FileImage className="h-4 w-4" strokeWidth={1.6} />
+              {t("coverPageTab")}
+              {coverPage.enabled && (
+                <span
+                  className="ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 text-[10px] font-bold rounded-full leading-none"
+                  style={{ background: "var(--accent)", color: "var(--bg)" }}
+                >
+                  ✓
+                </span>
+              )}
+            </TabsTrigger>
 
-        <button
-          id="tab-references"
-          onClick={() => setActiveTab("references")}
-          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md transition-all duration-150 border-b-2 -mb-px cursor-pointer
-            ${activeTab === "references"
-              ? "border-[color:var(--accent)] text-[color:var(--accent)] bg-[color:var(--accent-soft)]"
-              : "border-transparent text-[color:var(--text-2)] hover:text-[color:var(--text)] hover:bg-[color:var(--surface-3)]"
-            }`}
-          style={{ fontFamily: "var(--ui-font)" }}
-          aria-selected={activeTab === "references"}
-          role="tab"
-        >
-          <BookOpen className="h-4 w-4" strokeWidth={1.6} />
-          {t("referencesHeading")}
-        </button>
-      </div>
+            <TabsTrigger
+              value="references"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-none rounded-t-md border-b-2 border-transparent data-[state=active]:border-[color:var(--accent)] data-[state=active]:text-[color:var(--accent)] data-[state=active]:bg-[color:var(--accent-soft)] data-[state=inactive]:text-[color:var(--text-2)] hover:data-[state=inactive]:text-[color:var(--text)] hover:data-[state=inactive]:bg-[color:var(--surface-3)] transition-all duration-150 data-[state=active]:shadow-none"
+              style={{ fontFamily: "var(--ui-font)", marginBottom: "-1px" }}
+            >
+              <BookOpen className="h-4 w-4" strokeWidth={1.6} />
+              {t("referencesHeading")}
+            </TabsTrigger>
+            
+            <TabsTrigger
+              value="settings"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-none rounded-t-md border-b-2 border-transparent data-[state=active]:border-[color:var(--accent)] data-[state=active]:text-[color:var(--accent)] data-[state=active]:bg-[color:var(--accent-soft)] data-[state=inactive]:text-[color:var(--text-2)] hover:data-[state=inactive]:text-[color:var(--text)] hover:data-[state=inactive]:bg-[color:var(--surface-3)] transition-all duration-150 data-[state=active]:shadow-none"
+              style={{ fontFamily: "var(--ui-font)", marginBottom: "-1px" }}
+            >
+              <Settings className="h-4 w-4" strokeWidth={1.6} />
+              {t("titleSettingsTab")}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-      {/* Tab content */}
-      <div
-        key={activeTab}
-        className="flex-1 overflow-y-auto scrollbar-thin p-6 min-h-0 anim-fade-in"
-      >
-        {activeTab === "references" ? <ReferencesManager /> : <CoverPageForm />}
-      </div>
+        {/* Tab content */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-6 min-h-0">
+          <TabsContent value="cover" className="m-0 h-full anim-fade-in outline-none">
+            <CoverPageForm />
+          </TabsContent>
+          <TabsContent value="references" className="m-0 h-full anim-fade-in outline-none">
+            <ReferencesManager />
+          </TabsContent>
+          <TabsContent value="settings" className="m-0 h-full anim-fade-in outline-none">
+            <PageSettings />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }

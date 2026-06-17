@@ -8,6 +8,7 @@ import {
   convertInchesToTwip,
   PageBreak,
   Header,
+  Footer,
   PageNumber,
   NumberFormat,
   ImageRun,
@@ -19,6 +20,7 @@ import {
   VerticalAlign,
 } from "docx";
 import { saveAs } from "file-saver";
+import type { PageNumberPosition } from "../context/DocumentContext";
 import type { Reference } from "./referenceUtils";
 import { getYear } from "./referenceUtils";
 import type { ICitationFormatter } from "./citationFormats/types";
@@ -249,6 +251,8 @@ export const exportToDocx = async (
   formatter: ICitationFormatter = apa7Formatter,
   lang?: string,
   coverPage?: CoverPage,
+  pageNumberPosition: PageNumberPosition = null,
+  startNumberingOnCover: boolean = true,
 ) => {
   // ── Sort references according to formatter's sort mode ─────────────────────
   let sortedRefs: Reference[];
@@ -412,103 +416,104 @@ export const exportToDocx = async (
     }
   };
 
-  let documentHeader: Header;
+  const defaultPosition = formatter.sortMode === "appearance" ? "bottom-center" : "top-right";
+  const position = pageNumberPosition || defaultPosition;
 
+  let align: any = AlignmentType.RIGHT;
+  if (position.includes("center")) align = AlignmentType.CENTER;
+  if (position.includes("left")) align = AlignmentType.LEFT;
+
+  const pageNumElement = new Paragraph({
+    children: [new TextRun({ children: [PageNumber.CURRENT] })],
+    alignment: align,
+  });
+
+  let documentHeader: Header | undefined = undefined;
+  let documentFooter: Footer | undefined = undefined;
+
+  let logoParagraph: Paragraph | null = null;
   if (coverPage?.logo) {
     const logoBytes = base64ToUint8Array(coverPage.logo);
     if (logoBytes) {
-      documentHeader = new Header({
+      logoParagraph = new Paragraph({
         children: [
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            borders: {
-              top: { style: BorderStyle.NONE },
-              bottom: { style: BorderStyle.NONE },
-              left: { style: BorderStyle.NONE },
-              right: { style: BorderStyle.NONE },
-              insideHorizontal: { style: BorderStyle.NONE },
-              insideVertical: { style: BorderStyle.NONE },
-            },
-            rows: [
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [
-                      new Paragraph({
-                        children: [
-                          new ImageRun({
-                            data: logoBytes,
-                            transformation: { width: 50, height: 50 },
-                            type: "png",
-                          }),
-                        ],
-                        alignment: AlignmentType.LEFT,
-                      }),
-                    ],
-                    verticalAlign: VerticalAlign.CENTER,
-                  }),
-                  new TableCell({
-                    children: [
-                      new Paragraph({
-                        children: [
-                          new TextRun({
-                            children: [PageNumber.CURRENT],
-                          }),
-                        ],
-                        alignment: AlignmentType.RIGHT,
-                      }),
-                    ],
-                    verticalAlign: VerticalAlign.CENTER,
-                  }),
-                ],
-              }),
-            ],
+          new ImageRun({
+            data: logoBytes,
+            transformation: { width: 50, height: 50 },
+            type: "png",
           }),
         ],
-      });
-    } else {
-      documentHeader = new Header({
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({
-                children: [PageNumber.CURRENT],
-              }),
-            ],
-            alignment: AlignmentType.RIGHT,
-          }),
-        ],
+        alignment: AlignmentType.LEFT,
       });
     }
-  } else {
+  }
+
+  const isPageNumTop = position.startsWith("top");
+  const isPageNumBottom = position.startsWith("bottom");
+
+  if (logoParagraph && isPageNumTop) {
     documentHeader = new Header({
       children: [
-        new Paragraph({
-          children: [
-            new TextRun({
-              children: [PageNumber.CURRENT],
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: {
+            top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+            left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
+            insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE },
+          },
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({ children: [logoParagraph], verticalAlign: VerticalAlign.CENTER }),
+                new TableCell({ children: [pageNumElement], verticalAlign: VerticalAlign.CENTER }),
+              ],
             }),
           ],
-          alignment: AlignmentType.RIGHT,
         }),
       ],
     });
+  } else if (logoParagraph && !isPageNumTop) {
+    documentHeader = new Header({ children: [logoParagraph] });
+  } else if (!logoParagraph && isPageNumTop) {
+    documentHeader = new Header({ children: [pageNumElement] });
   }
+
+  if (isPageNumBottom) {
+    documentFooter = new Footer({ children: [pageNumElement] });
+  }
+
+  let firstDocumentHeader: Header | undefined = undefined;
+  if (logoParagraph) {
+    firstDocumentHeader = new Header({ children: [logoParagraph] });
+  }
+
+  const getHeaders = (isFirstPageTitle: boolean) => {
+    const h: any = {};
+    if (documentHeader) h.default = documentHeader;
+    if (isFirstPageTitle && firstDocumentHeader) h.first = firstDocumentHeader;
+    return Object.keys(h).length > 0 ? h : undefined;
+  };
+
+  const getFooters = (isFirstPageTitle: boolean) => {
+    const f: any = {};
+    if (documentFooter) f.default = documentFooter;
+    // For 'first' page, if we don't want page numbers, we simply don't set f.first (so it's blank)
+    return Object.keys(f).length > 0 ? f : undefined;
+  };
 
   const coverSection = coverPage?.enabled
     ? [
         {
           properties: {
             type: "nextPage" as const,
+            titlePage: !startNumberingOnCover,
             page: {
               margin: { top: margin, right: margin, bottom: margin, left: margin },
               pageNumbers: { start: 1, formatType: NumberFormat.DECIMAL },
             },
-          },
-          // APA 7: header with page number top-right; IEEE has no running header
-          headers: formatter.sortMode !== 'appearance' || coverPage?.logo
-            ? { default: documentHeader }
-            : undefined,
+          },        
+          footers: getFooters(!startNumberingOnCover),
+          headers: getHeaders(!startNumberingOnCover),
           children: buildCoverPageChildren(coverPage, formatter.sortMode),
         },
       ]
@@ -567,13 +572,14 @@ export const exportToDocx = async (
       ...coverSection,
       {
         properties: {
+          titlePage: (!coverPage?.enabled && !startNumberingOnCover) ? true : undefined,
           page: {
             margin: { top: margin, right: margin, bottom: margin, left: margin },
+            pageNumbers: !coverPage?.enabled ? { start: 1, formatType: NumberFormat.DECIMAL } : undefined,
           },
         },
-        headers: formatter.sortMode !== 'appearance' || coverPage?.logo
-          ? { default: documentHeader }
-          : undefined,
+        footers: !coverPage?.enabled ? getFooters(!startNumberingOnCover) : undefined,
+        headers: !coverPage?.enabled ? getHeaders(!startNumberingOnCover) : undefined,
         children: [...paragraphs],
       },
       {
@@ -583,9 +589,8 @@ export const exportToDocx = async (
             margin: { top: margin, right: margin, bottom: margin, left: margin },
           },
         },
-        headers: formatter.sortMode !== 'appearance' || coverPage?.logo
-          ? { default: documentHeader }
-          : undefined,
+        footers: undefined,
+        headers: undefined,
         children: [
           new Paragraph({
             children: [

@@ -3,6 +3,7 @@ import type { Reference } from './referenceUtils';
 import { getYear } from './referenceUtils';
 import type { ICitationFormatter } from './citationFormats/types';
 import type { CoverPage } from '../interfaces/ICoverPage';
+import type { PageNumberPosition } from '../context/DocumentContext';
 import { es, en } from '../i18n';
 import React from 'react';
 
@@ -26,11 +27,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     color: '#000000',
   },
-  // Page number in top right
-  pageNumber: {
+  // Base Page number style
+  pageNumberBase: {
     position: 'absolute',
-    top: 36, // 0.5 inch from top
-    right: MARGIN,
     fontSize: FONT_SIZE,
     fontFamily: 'Times-Roman',
     color: '#000000',
@@ -276,8 +275,33 @@ const buildPdfDocument = (
   formatter: ICitationFormatter,
   lang?: string,
   coverPage?: CoverPage,
+  pageNumberPosition: PageNumberPosition = null,
+  startNumberingOnCover: boolean = true,
 ): React.ReactElement<any> => {
   const isIEEE = formatter.sortMode === 'appearance';
+  
+  const defaultPosition = isIEEE ? 'bottom-center' : 'top-right';
+  const position = pageNumberPosition || defaultPosition;
+
+  let topBottomStyle: any = { top: 36 }; // 0.5 inch from top
+  if (position.startsWith('bottom')) {
+    topBottomStyle = { bottom: 36 }; // 0.5 inch from bottom
+  }
+
+  let leftRightStyle: any = { right: MARGIN };
+  if (position.includes('center')) {
+    leftRightStyle = { left: 0, right: 0, textAlign: 'center' };
+  } else if (position.includes('left')) {
+    leftRightStyle = { left: MARGIN };
+  }
+
+  const dynamicPageNumberStyle = [styles.pageNumberBase, topBottomStyle, leftRightStyle];
+
+  // Helper to conditionally render page number
+  const renderPageNumber = ({ pageNumber }: { pageNumber: number }) => {
+    if (!startNumberingOnCover && pageNumber === 1) return "";
+    return String(pageNumber);
+  };
 
   // Sort references
   const htmlDoc = new DOMParser().parseFromString(text, 'text/html');
@@ -332,8 +356,8 @@ const buildPdfDocument = (
       {coverPage?.enabled && (
         <Page size="LETTER" style={[styles.page, styles.coverPage]}>
           <Text
-            style={styles.pageNumber}
-            render={({ pageNumber }: { pageNumber: number }) => String(pageNumber)}
+            style={dynamicPageNumberStyle as any}
+            render={renderPageNumber}
             fixed
           />
           <View style={{ marginTop: 150, alignItems: 'center' }}>
@@ -358,8 +382,8 @@ const buildPdfDocument = (
       {/* ── Body Page(s) ── */}
       <Page size="LETTER" style={styles.page}>
         <Text
-          style={styles.pageNumber}
-          render={({ pageNumber }: { pageNumber: number }) => String(pageNumber)}
+          style={dynamicPageNumberStyle as any}
+          render={renderPageNumber}
           fixed
         />
         {/* APA 7: repeat document title at top of first body page */}
@@ -372,8 +396,8 @@ const buildPdfDocument = (
       {/* ── References Page ── */}
       <Page size="LETTER" style={styles.page} break>
         <Text
-          style={styles.pageNumber}
-          render={({ pageNumber }: { pageNumber: number }) => String(pageNumber)}
+          style={dynamicPageNumberStyle as any}
+          render={renderPageNumber}
           fixed
         />
         <Text style={styles.referencesHeading}>{formatter.sectionHeading(lang)}</Text>
@@ -395,9 +419,11 @@ export const exportToPdf = async (
   formatter: ICitationFormatter,
   lang?: string,
   coverPage?: CoverPage,
+  pageNumberPosition: PageNumberPosition = null,
+  startNumberingOnCover: boolean = true,
 ) => {
   try {
-    const docElement = buildPdfDocument(text, references, formatter, lang, coverPage);
+    const docElement = buildPdfDocument(text, references, formatter, lang, coverPage, pageNumberPosition, startNumberingOnCover);
     const pdfInstance = pdf(docElement);
     const blob = await pdfInstance.toBlob();
 

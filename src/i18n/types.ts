@@ -166,6 +166,21 @@ export interface TranslationDictionary {
   daysShort: string[];
   dateLocaleFormat: string;
 
+  // Page Settings
+  titleSettingsTab: string;
+  pageSettingsTitle: string;
+  pageNumbering: string;
+  pageNumberPosition: string;
+  posTopRight: string;
+  posTopCenter: string;
+  posTopLeft: string;
+  posBottomRight: string;
+  posBottomCenter: string;
+  posBottomLeft: string;
+  pageNumberDefaultFormat: string;
+  startNumberOnCover: string;
+  startNumberOnCoverDesc: string;
+
   // Citations / Formats (Generated texts)
   nd: string; // no date (s.f. / n.d.)
   etAl: string; // et al.

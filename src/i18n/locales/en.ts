@@ -160,6 +160,21 @@ export const en: TranslationDictionary = {
   daysShort: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
   dateLocaleFormat: 'en-US',
 
+  // Page Settings
+  titleSettingsTab: 'Settings',
+  pageSettingsTitle: 'Page Settings',
+  pageNumbering: 'Page numbering',
+  pageNumberPosition: 'Numbering position',
+  posTopRight: 'Top right',
+  posTopCenter: 'Top center',
+  posTopLeft: 'Top left',
+  posBottomRight: 'Bottom right',
+  posBottomCenter: 'Bottom center',
+  posBottomLeft: 'Bottom left',
+  pageNumberDefaultFormat: 'By default, depends on the selected format ({0}).',
+  startNumberOnCover: 'Start numbering on cover',
+  startNumberOnCoverDesc: 'If turned off, the first page will not have a number and the second page will start at 2.',
+
   nd: 'n.d.',
   etAl: 'et al.',
   retrievedFrom: 'Retrieved from',
