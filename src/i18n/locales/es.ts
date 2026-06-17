@@ -160,6 +160,21 @@ export const es: TranslationDictionary = {
   daysShort: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
   dateLocaleFormat: 'es-ES',
 
+  // Page Settings
+  titleSettingsTab: 'Ajustes',
+  pageSettingsTitle: 'Ajustes de Página',
+  pageNumbering: 'Numeración de página',
+  pageNumberPosition: 'Posición de numeración',
+  posTopRight: 'Arriba a la derecha',
+  posTopCenter: 'Arriba al centro',
+  posTopLeft: 'Arriba a la izquierda',
+  posBottomRight: 'Pie de página - Derecha',
+  posBottomCenter: 'Pie de página - Centro',
+  posBottomLeft: 'Pie de página - Izquierda',
+  pageNumberDefaultFormat: 'Por defecto, depende del formato seleccionado ({0}).',
+  startNumberOnCover: 'Iniciar numeración en la portada',
+  startNumberOnCoverDesc: 'Si está apagado, la primera hoja no tendrá número y la segunda hoja iniciará en 2.',
+
   nd: 's.f.',
   etAl: 'et al.',
   retrievedFrom: 'Recuperado de',
