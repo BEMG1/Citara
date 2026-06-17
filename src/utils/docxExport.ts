@@ -494,7 +494,7 @@ export const exportToDocx = async (
     return Object.keys(h).length > 0 ? h : undefined;
   };
 
-  const getFooters = (isFirstPageTitle: boolean) => {
+  const getFooters = () => {
     const f: any = {};
     if (documentFooter) f.default = documentFooter;
     // For 'first' page, if we don't want page numbers, we simply don't set f.first (so it's blank)
@@ -512,7 +512,7 @@ export const exportToDocx = async (
               pageNumbers: { start: 1, formatType: NumberFormat.DECIMAL },
             },
           },        
-          footers: getFooters(!startNumberingOnCover),
+          footers: getFooters(),
           headers: getHeaders(!startNumberingOnCover),
           children: buildCoverPageChildren(coverPage, formatter.sortMode),
         },
@@ -578,7 +578,7 @@ export const exportToDocx = async (
             pageNumbers: !coverPage?.enabled ? { start: 1, formatType: NumberFormat.DECIMAL } : undefined,
           },
         },
-        footers: !coverPage?.enabled ? getFooters(!startNumberingOnCover) : undefined,
+        footers: !coverPage?.enabled ? getFooters() : undefined,
         headers: !coverPage?.enabled ? getHeaders(!startNumberingOnCover) : undefined,
         children: [...paragraphs],
       },
