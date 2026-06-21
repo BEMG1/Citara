@@ -1,8 +1,8 @@
-import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import type { Reference } from './referenceUtils';
+import { pdf, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import type { IReference } from './referenceUtils';
 import { getYear } from './referenceUtils';
 import type { ICitationFormatter } from './citationFormats/types';
-import type { CoverPage } from '../interfaces/ICoverPage';
+import type { ICoverPageData } from '../interfaces/ICoverPage';
 import type { PageNumberPosition } from '../context/DocumentContext';
 import { es, en } from '../i18n';
 import React from 'react';
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     textIndent: 36, // 0.5 inch first-line indent
     color: '#000000',
   },
-  // Reference page
+  // IReference page
   referencesHeading: {
     fontFamily: 'Times-Bold',
     fontSize: FONT_SIZE,
@@ -130,6 +130,10 @@ const styles = StyleSheet.create({
     textIndent: -36,
     color: '#000000',
   },
+  figureImage: {
+    marginVertical: 12,
+    maxWidth: '100%',
+  },
 });
 
 // ─── Helpers para parsear nodos HTML ──────────────────────────────────────────
@@ -142,7 +146,7 @@ interface ParsedRun {
 
 const parseHtmlNodeForPdf = (
   node: Node,
-  references: Reference[],
+  references: IReference[],
   formatter: ICitationFormatter,
   refIndexMap: Map<string, number>,
   lang?: string,
@@ -200,7 +204,7 @@ const renderInlineRuns = (runs: ParsedRun[]): React.ReactNode => {
 // ─── Build APA reference text with italic spans ───────────────────────────────
 
 const buildReferenceRuns = (
-  ref: Reference,
+  ref: IReference,
   formatter: ICitationFormatter,
   index: number,
   lang?: string,
@@ -271,10 +275,10 @@ const buildReferenceRuns = (
 
 const buildPdfDocument = (
   text: string,
-  references: Reference[],
+  references: IReference[],
   formatter: ICitationFormatter,
   lang?: string,
-  coverPage?: CoverPage,
+  coverPage?: ICoverPageData,
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
 ): React.ReactElement<any> => {
@@ -324,10 +328,11 @@ const buildPdfDocument = (
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as Element;
     const tag = el.tagName.toUpperCase();
+    const isFigure = tag === 'FIGURE' || el.getAttribute('data-type') === 'figure';
     const runs = Array.from(el.childNodes).flatMap((child) =>
       parseHtmlNodeForPdf(child, references, formatter, refIndexMap, lang)
     );
-    if (runs.length === 0 && !el.textContent?.trim()) return;
+    if (runs.length === 0 && !el.textContent?.trim() && !isFigure) return;
 
     if (tag === 'H1') {
       bodyBlocks.push(<Text key={idx} style={styles.h1}>{renderInlineRuns(runs)}</Text>);
@@ -335,6 +340,54 @@ const buildPdfDocument = (
       bodyBlocks.push(<Text key={idx} style={styles.h2}>{renderInlineRuns(runs)}</Text>);
     } else if (tag === 'H3') {
       bodyBlocks.push(<Text key={idx} style={styles.h3}>{renderInlineRuns(runs)}</Text>);
+    } else if (tag === 'FIGURE' || el.getAttribute('data-type') === 'figure') {
+      const number = el.getAttribute("number");
+      const title = el.getAttribute("title");
+      const imageUrl = el.getAttribute("imageurl") || el.getAttribute("imageUrl");
+      const caption = el.getAttribute("caption");
+      const note = el.getAttribute("note");
+      
+      if (number) {
+        bodyBlocks.push(<Text key={`${idx}-number`} style={{ ...styles.paragraph, fontFamily: 'Times-Bold' }}>Figura {number}</Text>);
+      }
+      if (title) {
+        bodyBlocks.push(<Text key={`${idx}-title`} style={{ ...styles.paragraph, fontFamily: 'Times-Italic', marginBottom: 12 }}>{title}</Text>);
+      }
+      if (imageUrl && imageUrl.startsWith('data:image')) {
+        bodyBlocks.push(<Image key={`${idx}-img`} src={imageUrl} style={styles.figureImage} />);
+      }
+      if (caption) {
+        bodyBlocks.push(<Text key={`${idx}-caption`} style={styles.paragraph}>{caption}</Text>);
+      }
+      
+      let fullNote = note || "";
+      const attrType = el.getAttribute("attributionType") || el.getAttribute("attributiontype");
+      if (attrType) {
+        const attrTitle = el.getAttribute("attributionTitle") || el.getAttribute("attributiontitle");
+        const attrAuthor = el.getAttribute("attributionAuthor") || el.getAttribute("attributionauthor");
+        const attrYear = el.getAttribute("attributionYear") || el.getAttribute("attributionyear");
+        const attrPublisher = el.getAttribute("attributionPublisher") || el.getAttribute("attributionpublisher");
+        const attrJournal = el.getAttribute("attributionJournal") || el.getAttribute("attributionjournal");
+        const attrSiteName = el.getAttribute("attributionSiteName") || el.getAttribute("attributionsitename");
+        const attrChannel = el.getAttribute("attributionChannel") || el.getAttribute("attributionchannel");
+        const attrLicense = el.getAttribute("attributionLicense") || el.getAttribute("attributionlicense");
+
+        const sourceName = attrJournal || attrPublisher || attrSiteName || attrChannel;
+        
+        const parts = [];
+        if (attrTitle) parts.push(`"${attrTitle}"`);
+        if (attrAuthor) parts.push(`por ${attrAuthor}`);
+        if (attrYear) parts.push(attrYear);
+        if (sourceName) parts.push(sourceName);
+        if (attrLicense) parts.push(attrLicense);
+
+        const generatedNote = parts.length > 0 ? `Nota. Adaptado de ${parts.join(', ')}.` : '';
+        fullNote = fullNote ? `${fullNote} ${generatedNote}` : generatedNote;
+      }
+
+      if (fullNote) {
+        bodyBlocks.push(<Text key={`${idx}-note`} style={{ ...styles.paragraph, marginTop: 12 }}>{fullNote}</Text>);
+      }
     } else {
       bodyBlocks.push(<Text key={idx} style={styles.paragraph}>{renderInlineRuns(runs)}</Text>);
     }
@@ -386,10 +439,7 @@ const buildPdfDocument = (
           render={renderPageNumber}
           fixed
         />
-        {/* APA 7: repeat document title at top of first body page */}
-        {!isIEEE && coverPage?.enabled && coverPage.title && (
-          <Text style={styles.docTitle}>{coverPage.title}</Text>
-        )}
+
         {bodyBlocks}
       </Page>
 
@@ -414,11 +464,11 @@ const buildPdfDocument = (
 
 export const exportToPdf = async (
   text: string,
-  references: Reference[],
+  references: IReference[],
   suggestedName = 'Document_Citara',
   formatter: ICitationFormatter,
   lang?: string,
-  coverPage?: CoverPage,
+  coverPage?: ICoverPageData,
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
 ) => {

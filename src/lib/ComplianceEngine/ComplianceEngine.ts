@@ -1,10 +1,10 @@
 import type { CitationFormat } from '@/utils/citationFormats';
-import type { ComplianceReport, DocumentData, NormEngine } from './types';
+import type { ComplianceReport, IDocumentData, INormEngine } from './types';
 import { apa7Engine } from './APA7/index.ts';
 import { apa6Engine } from './APA6/index.ts';
 import { ieeeEngine } from './IEEE/index.ts';
 
-const engines: Record<CitationFormat, NormEngine> = {
+const engines: Record<CitationFormat, INormEngine> = {
   apa7: apa7Engine,
   apa6: apa6Engine,
   ieee: ieeeEngine,
@@ -17,7 +17,7 @@ export class ComplianceEngine {
    * @param format The target citation format
    * @returns A detailed compliance report
    */
-  static analyzeDocument(data: DocumentData, format: CitationFormat): ComplianceReport {
+  static analyzeDocument(data: IDocumentData, format: CitationFormat): ComplianceReport {
     const engine = engines[format];
     
     if (!engine) {

@@ -1,9 +1,9 @@
 import AppProviders from "@/context/AppContext";
 import Header from "@/components/Layout/Header";
-import DocumentEditor from "@/components/documentEditor/DocumentEditor";
-import DocumentTitle from "@/components/documentEditor/DocumentTitle";
+import DocumentEditor from "@/components/DocumentEditor/DocumentEditor";
+import DocumentTitle from "@/components/DocumentEditor/DocumentTitle";
 import ReferencesManager from "@/components/References/ReferencesManager";
-import ExportWarningModal from "@/components/documentEditor/ExportWarningModal";
+import ExportWarningModal from "@/components/DocumentEditor/ExportWarningModal";
 import CoverPageForm from "@/components/CoverPage/CoverPageForm";
 import { BookOpen, FileImage } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,10 +16,13 @@ import { useCoverPage } from "@/context/AppContext";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import PageSettings from "@/components/Settings/PageSettings";
-import { Settings } from "lucide-react";
+import { Settings, ImageIcon } from "lucide-react";
+import FigurePropertiesPanel from "@/components/Figures/FigurePropertiesPanel";
+import { useFigures } from "@/context/AppContext";
 
 function RightPanel() {
   const { coverPage } = useCoverPage();
+  const { figures } = useFigures();
   const { t } = useLanguage();
 
   return (
@@ -62,6 +65,17 @@ function RightPanel() {
               <BookOpen className="h-4 w-4" strokeWidth={1.6} />
               {t("referencesHeading")}
             </TabsTrigger>
+
+            {figures.length > 0 && (
+              <TabsTrigger
+                value="figures"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-none rounded-t-md border-b-2 border-transparent data-[state=active]:border-[color:var(--accent)] data-[state=active]:text-[color:var(--accent)] data-[state=active]:bg-[color:var(--accent-soft)] data-[state=inactive]:text-[color:var(--text-2)] hover:data-[state=inactive]:text-[color:var(--text)] hover:data-[state=inactive]:bg-[color:var(--surface-3)] transition-all duration-150 data-[state=active]:shadow-none"
+                style={{ fontFamily: "var(--ui-font)", marginBottom: "-1px" }}
+              >
+                <ImageIcon className="h-4 w-4" strokeWidth={1.6} />
+                {t("figuresTab")}
+              </TabsTrigger>
+            )}
             
             <TabsTrigger
               value="settings"
@@ -84,6 +98,9 @@ function RightPanel() {
           </TabsContent>
           <TabsContent value="settings" className="m-0 h-full anim-fade-in outline-none">
             <PageSettings />
+          </TabsContent>
+          <TabsContent value="figures" className="m-0 h-full anim-fade-in outline-none">
+            <FigurePropertiesPanel />
           </TabsContent>
         </div>
       </Tabs>

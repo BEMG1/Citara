@@ -1,10 +1,10 @@
 import React from 'react';
-import type { CoverPage } from '@/interfaces/ICoverPage';
+import type { ICoverPageData } from '@/interfaces/ICoverPage';
 import type { CitationFormat } from '@/utils/citationFormats';
 import { useLanguage } from '@/context/AppContext';
 
 interface CoverPagePreviewProps {
-  coverPage: CoverPage;
+  coverPage: ICoverPageData;
   citationFormat: CitationFormat;
 }
 
@@ -95,7 +95,7 @@ const CoverPagePreview: React.FC<CoverPagePreviewProps> = ({ coverPage, citation
 
               {coverPage.authors && (
                 <div className="nj-text" style={{ fontSize: '0.5rem' }}>
-                  {coverPage.authors.split('\n').map((author, idx) => (
+                  {coverPage.authors.split('\n').map((author: string, idx: number) => (
                     <div key={idx}>{author}</div>
                   ))}
                 </div>

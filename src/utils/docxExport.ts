@@ -21,11 +21,11 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import type { PageNumberPosition } from "../context/DocumentContext";
-import type { Reference } from "./referenceUtils";
+import type { IReference } from "./referenceUtils";
 import { getYear } from "./referenceUtils";
 import type { ICitationFormatter } from "./citationFormats/types";
 import { apa7Formatter } from "./citationFormats/apa7.tsx";
-import type { CoverPage } from "../interfaces/ICoverPage";
+import type { ICoverPageData } from "../interfaces/ICoverPage";
 
 const margin = convertInchesToTwip(1);
 
@@ -37,6 +37,21 @@ const tText = (key: keyof typeof es, lang?: string): string => ((lang === 'en' ?
 const emptyLine = () =>
   new Paragraph({ children: [new TextRun({ text: '' })], spacing: { line: 480 } });
 
+const base64ToUint8Array = (base64Str: string) => {
+  try {
+    const base64Data = base64Str.split(",")[1];
+    const binaryStr = atob(base64Data);
+    const len = binaryStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    return bytes;
+  } catch (e) {
+    return null;
+  }
+};
+
 // ─── Cover page builder ────────────────────────────────────────────────────────
 /**
  * Builds the cover page paragraphs following each format's standard.
@@ -44,7 +59,7 @@ const emptyLine = () =>
  * IEEE: centred, compact.
  */
 const buildCoverPageChildren = (
-  cover: CoverPage,
+  cover: ICoverPageData,
   formatterSortMode: ICitationFormatter['sortMode'],
 ): Paragraph[] => {
   const isIEEE = formatterSortMode === 'appearance';
@@ -69,7 +84,7 @@ const buildCoverPageChildren = (
     ieeeChildren.push(
       centred([bold(cover.title.toUpperCase(), 28)]),
       emptyLine(), emptyLine(),
-      ...cover.authors.split('\n').map(a => a.trim()).filter(Boolean).map(a => centred([normal(a)])),
+      ...cover.authors.split('\n').map((a: string) => a.trim()).filter(Boolean).map((a: string) => centred([normal(a)])),
       emptyLine(),
     );
 
@@ -109,8 +124,8 @@ const buildCoverPageChildren = (
 
   // Autor(es)
   if (cover.authors?.trim()) {
-    const authorLines = cover.authors.split('\n').map(a => a.trim()).filter(Boolean);
-    authorLines.forEach(a => children.push(centred([normal(a)])));
+    const authorLines = cover.authors.split('\n').map((a: string) => a.trim()).filter(Boolean);
+    authorLines.forEach((a: string) => children.push(centred([normal(a)])));
   }
 
   // Institución y Facultad
@@ -151,7 +166,7 @@ const buildCoverPageChildren = (
 // ─── Rich reference paragraph builder for DOCX ────────────────────────────────
 // Builds a Paragraph with hanging indent and proper italic runs.
 const buildRichReferenceParagraph = (
-  ref: Reference,
+  ref: IReference,
   formatter: ICitationFormatter,
   index: number,
   lang?: string
@@ -246,16 +261,16 @@ const buildRichReferenceParagraph = (
 
 export const exportToDocx = async (
   text: string,
-  references: Reference[],
+  references: IReference[],
   suggestedName = "File_Normalizate_APA",
   formatter: ICitationFormatter = apa7Formatter,
   lang?: string,
-  coverPage?: CoverPage,
+  coverPage?: ICoverPageData,
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
 ) => {
   // ── Sort references according to formatter's sort mode ─────────────────────
-  let sortedRefs: Reference[];
+  let sortedRefs: IReference[];
 
   if (formatter.sortMode === "appearance") {
     // IEEE: order references by first appearance in document
@@ -327,11 +342,13 @@ export const exportToDocx = async (
     return [];
   };
 
-  const parseHtmlBlock = (element: Element): Paragraph | null => {
+  const parseHtmlBlock = (element: Element): Paragraph | Paragraph[] | null => {
     const tagName = element.tagName.toUpperCase();
     const childrenNodes = Array.from(element.childNodes).flatMap(parseHtmlNode);
 
-    if (childrenNodes.length === 0) return null;
+    const isFigure = tagName === "FIGURE" || (element.hasAttribute("data-type") && element.getAttribute("data-type") === "figure");
+
+    if (childrenNodes.length === 0 && !isFigure) return null;
 
     if (tagName === "H1") {
       return new Paragraph({
@@ -369,6 +386,94 @@ export const exportToDocx = async (
         spacing: { line: 480 },
       });
     }
+    if (tagName === "FIGURE" || (element.hasAttribute("data-type") && element.getAttribute("data-type") === "figure")) {
+      const number = element.getAttribute("number");
+      const title = element.getAttribute("title");
+      const imageUrl = element.getAttribute("imageurl") || element.getAttribute("imageUrl");
+      const caption = element.getAttribute("caption");
+      const note = element.getAttribute("note");
+      
+      const figureParagraphs: Paragraph[] = [];
+      
+      if (number) {
+        figureParagraphs.push(new Paragraph({
+          children: [new TextRun({ text: `Figura ${number}`, bold: true })],
+          alignment: AlignmentType.LEFT,
+          spacing: { before: 240, after: 120, line: 480 },
+        }));
+      }
+
+      if (title) {
+        figureParagraphs.push(new Paragraph({
+          children: [new TextRun({ text: title, italics: true })],
+          alignment: AlignmentType.LEFT,
+          spacing: { before: 0, after: 240, line: 480 },
+        }));
+      }
+
+      if (imageUrl && imageUrl.startsWith('data:image')) {
+        const imageBytes = base64ToUint8Array(imageUrl);
+        const match = imageUrl.match(/^data:image\/(png|jpeg|jpg);base64,/);
+        const imageType = match ? (match[1] === 'jpg' ? 'jpeg' : match[1]) : 'png';
+        
+        if (imageBytes) {
+          figureParagraphs.push(new Paragraph({
+            children: [new ImageRun({
+              data: imageBytes,
+              transformation: { width: 500, height: 300 }, // Will be resized proportionally in word usually, but we provide a default size
+              type: imageType as any,
+            })],
+            alignment: AlignmentType.LEFT,
+            spacing: { before: 120, after: 120 },
+          }));
+        }
+      }
+
+      if (caption) {
+        figureParagraphs.push(new Paragraph({
+          children: [new TextRun({ text: caption })],
+          alignment: AlignmentType.LEFT,
+          spacing: { before: 120, after: 120, line: 480 },
+        }));
+      }
+
+      // Reconstruct note with copyright attribution if available
+      let fullNote = note || "";
+      const attrType = element.getAttribute("attributionType") || element.getAttribute("attributiontype");
+      if (attrType) {
+        const attrTitle = element.getAttribute("attributionTitle") || element.getAttribute("attributiontitle");
+        const attrAuthor = element.getAttribute("attributionAuthor") || element.getAttribute("attributionauthor");
+        const attrYear = element.getAttribute("attributionYear") || element.getAttribute("attributionyear");
+        const attrPublisher = element.getAttribute("attributionPublisher") || element.getAttribute("attributionpublisher");
+        const attrJournal = element.getAttribute("attributionJournal") || element.getAttribute("attributionjournal");
+        const attrSiteName = element.getAttribute("attributionSiteName") || element.getAttribute("attributionsitename");
+        const attrChannel = element.getAttribute("attributionChannel") || element.getAttribute("attributionchannel");
+        const attrLicense = element.getAttribute("attributionLicense") || element.getAttribute("attributionlicense");
+
+        const sourceName = attrJournal || attrPublisher || attrSiteName || attrChannel;
+        
+        const parts = [];
+        if (attrTitle) parts.push(`"${attrTitle}"`);
+        if (attrAuthor) parts.push(`por ${attrAuthor}`);
+        if (attrYear) parts.push(attrYear);
+        if (sourceName) parts.push(sourceName);
+        if (attrLicense) parts.push(attrLicense);
+
+        const generatedNote = parts.length > 0 ? `Nota. Adaptado de ${parts.join(', ')}.` : '';
+        fullNote = fullNote ? `${fullNote} ${generatedNote}` : generatedNote;
+      }
+
+      if (fullNote) {
+        figureParagraphs.push(new Paragraph({
+          children: [new TextRun({ text: fullNote })],
+          alignment: AlignmentType.LEFT,
+          spacing: { before: 120, after: 240, line: 480 },
+        }));
+      }
+
+      return figureParagraphs.length > 0 ? figureParagraphs : null;
+    }
+
     return new Paragraph({
       children: childrenNodes.map((r) =>
         new TextRun({ text: r.text, bold: r.bold, italics: r.italics }),
@@ -383,7 +488,11 @@ export const exportToDocx = async (
   htmlDoc.body.childNodes.forEach((node) => {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const p = parseHtmlBlock(node as Element);
-      if (p) paragraphs.push(p);
+      if (Array.isArray(p)) {
+        paragraphs.push(...p);
+      } else if (p) {
+        paragraphs.push(p);
+      }
     } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
       paragraphs.push(
         new Paragraph({
@@ -400,21 +509,6 @@ export const exportToDocx = async (
 
   // Build cover page section if enabled
   // APA 7 §2.3: page number appears top-right on the cover page itself (page 1).
-  
-  const base64ToUint8Array = (base64Str: string) => {
-    try {
-      const base64Data = base64Str.split(",")[1];
-      const binaryStr = atob(base64Data);
-      const len = binaryStr.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      return bytes;
-    } catch (e) {
-      return null;
-    }
-  };
 
   const defaultPosition = formatter.sortMode === "appearance" ? "bottom-center" : "top-right";
   const position = pageNumberPosition || defaultPosition;

@@ -2,7 +2,7 @@ import React, { useId } from 'react';
 import { RotateCcw, FileImage, ToggleLeft, ToggleRight, Info, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
 import { useCoverPage, useLanguage } from '@/context/AppContext';
 import { useCitationFormat } from '@/context/AppContext';
-import type { CoverPage } from '@/interfaces/ICoverPage';
+import type { ICoverPageData } from '@/interfaces/ICoverPage';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import CoverPagePreview from './CoverPagePreview';
 import DatePickerField from './DatePickerField';
@@ -10,7 +10,7 @@ import DatePickerField from './DatePickerField';
 // ─── Field definitions per format ─────────────────────────────────────────────
 
 interface FieldDef {
-  key: keyof CoverPage;
+  key: keyof ICoverPageData;
   labelKey: keyof typeof import('@/i18n/locales/es').es;
   placeholderKey: keyof typeof import('@/i18n/locales/es').es;
   hintKey?: keyof typeof import('@/i18n/locales/es').es;
@@ -264,8 +264,8 @@ const CoverPageForm: React.FC = () => {
             if (def.key === 'date') {
               return (
                 <DatePickerField
-                  key={def.key}
-                  id={`${baseId}-${def.key}`}
+                  key={def.key as string}
+                  id={`${baseId}-${def.key as string}`}
                   label={t(def.labelKey) as string}
                   value={value}
                   required={def.required}
@@ -276,11 +276,11 @@ const CoverPageForm: React.FC = () => {
 
             return (
               <FormField
-                key={def.key}
-                id={`${baseId}-${def.key}`}
+                key={def.key as string}
+                id={`${baseId}-${def.key as string}`}
                 def={def}
                 value={value}
-                onChange={(val) => updateField(def.key, val as CoverPage[typeof def.key])}
+                onChange={(val) => updateField(def.key, val as ICoverPageData[typeof def.key])}
                 t={t}
               />
             );

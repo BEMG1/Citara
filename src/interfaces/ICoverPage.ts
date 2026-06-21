@@ -4,7 +4,7 @@
  * Holds all metadata needed to render an academic cover page.
  * Optional fields are hidden/shown according to the active citation format.
  */
-export interface CoverPage {
+export interface ICoverPageData {
   /** Whether to include a cover page in the exported document */
   enabled: boolean;
   /** Main title of the document */
@@ -31,9 +31,9 @@ export interface CoverPage {
 
 // ─── Context interface ─────────────────────────────────────────────────────────
 
-export interface ICoverPage {
-  coverPage: CoverPage;
-  setCoverPage: React.Dispatch<React.SetStateAction<CoverPage>>;
-  updateField: <K extends keyof CoverPage>(field: K, value: CoverPage[K]) => void;
+export interface ICoverPageContext {
+  coverPage: ICoverPageData;
+  setCoverPage: React.Dispatch<React.SetStateAction<ICoverPageData>>;
+  updateField: <K extends keyof ICoverPageData>(field: K, value: ICoverPageData[K]) => void;
   resetCoverPage: () => void;
 }

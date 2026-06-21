@@ -23,7 +23,7 @@ export const en: TranslationDictionary = {
   formatIEEE: 'IEEE Format',
   formatIEEEDesc: 'Numeric, used in engineering and hard sciences.',
 
-  addReference: 'Add Reference',
+  addReference: 'Add IReference',
   noReferences: 'No references yet.',
   noReferencesHint: 'Click the button above to start.',
   sortAZ: 'A→Z',
@@ -221,7 +221,7 @@ export const en: TranslationDictionary = {
   missingNormCover: 'Complete the cover page.',
   missingNormCitations: 'Incorporate in-text citations.',
 
-  // Engine Rule Names (from API)
+  // Engine IRule Names (from API)
   'Portada incompleta': 'Incomplete Cover Page',
   'Portada': 'Cover Page',
   'Fuente permitida': 'Allowed Font',
@@ -251,7 +251,7 @@ export const en: TranslationDictionary = {
   'crossRef.empty': 'No citations or references found to cross-reference.',
   'crossRef.untitled': 'Untitled',
 
-  // Engine Rule Messages (from API)
+  // Engine IRule Messages (from API)
   'Se mencionan referencias, pero no parece haber una sección con encabezado formal.': 'References are mentioned, but no formal section heading was found.',
   'No se encontró la sección de Referencias.': 'References section was not found.',
   'Se encontró un encabezado de nivel 2 sin un nivel 1 previo.': 'A level 2 heading was found without a preceding level 1 heading.',
@@ -259,5 +259,28 @@ export const en: TranslationDictionary = {
   'Se detectó una fuente no recomendada (ej. Comic Sans).': 'A non-recommended font was detected (e.g. Comic Sans).',
   'El documento es demasiado corto o no tiene portada clara.': 'The document is too short or has no clear cover page.',
   'No se pudo verificar claramente la estructura de la portada.': 'The cover page structure could not be clearly verified.',
-  'Referencia sin título': 'Untitled reference'
+  'Referencia sin título': 'Untitled reference',
+
+  // Figures
+  insertFigure: 'Insert Figure',
+  figureTitle: 'Figure Title',
+  figureCaption: 'Caption',
+  figureNote: 'Note',
+  figureImage: 'Image',
+  figureBasicInfo: 'Basic Information',
+  figureApaAttribution: 'APA Attribution',
+  figureOriginalTitle: 'Original image title',
+  figureAuthor: 'Original author',
+  figureYear: 'Publication year',
+  figureSource: 'Original source (e.g. website, book)',
+  figureUrl: 'URL',
+  figureLicense: 'License (e.g. CC BY 4.0)',
+  figureImageRequired: 'An image is required.',
+  figureTitleRequired: 'A title is required.',
+  figure: 'Figure',
+  noteAdaptedFrom: 'Note. Adapted from',
+  noteFrom: 'Note. From',
+  figuresTab: 'Figures',
+  figuresTabEmpty: 'No figures in the document.',
+  figuresTabUnselected: 'Select a figure in the editor to modify its properties.',
 };

@@ -1,10 +1,10 @@
-import type { Reference } from '@/utils/referenceUtils';
+import type { IReference } from '@/utils/referenceUtils';
 
 // ─── Supported citation format identifiers ───────────────────────────────────
 export type CitationFormat = 'apa7' | 'apa6' | 'ieee';
 
 // ─── Display metadata for UI ─────────────────────────────────────────────────
-export interface CitationFormatConfig {
+export interface ICitationFormatConfig {
   /** Short label shown in selectors and headers (e.g. "APA 7ª Ed.") */
   label: string;
   /** Subtitle shown in the app header (e.g. "7ª Edición · Alfa") */
@@ -17,20 +17,20 @@ export interface CitationFormatConfig {
 
 /**
  * Each citation format must implement this interface.
- * All methods receive a fully-typed Reference object.
+ * All methods receive a fully-typed IReference object.
  */
 export interface ICitationFormatter {
   /**
    * Returns the full, plain-text reference string for use in the
    * references section (e.g. for clipboard copy).
    */
-  formatReference(ref: Reference, lang?: string): string;
+  formatReference(ref: IReference, lang?: string): string;
 
   /**
    * Returns a JSX element with appropriate italic/bold markup
    * for the in-editor preview panel.
    */
-  formatReferenceJSX(ref: Reference, lang?: string): React.ReactElement;
+  formatReferenceJSX(ref: IReference, lang?: string): React.ReactElement;
 
   /**
    * Returns the in-text citation string to be appended when the user
@@ -39,7 +39,7 @@ export interface ICitationFormatter {
    * @param ref - The reference being cited.
    * @param index - 1-based position of the reference (used by IEEE).
    */
-  formatInTextCitation(ref: Reference, index?: number, lang?: string): string;
+  formatInTextCitation(ref: IReference, index?: number, lang?: string): string;
 
   /**
    * Indicates whether references should be sorted alphabetically (APA)

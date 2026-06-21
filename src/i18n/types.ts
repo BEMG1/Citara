@@ -38,7 +38,7 @@ export interface TranslationDictionary {
   copyRefTooltip: string;
   deleteRefTooltip: string;
 
-  // Reference Fields
+  // IReference Fields
   sourceType: string;
   typeBook: string;
   typeArticle: string;
@@ -227,5 +227,29 @@ export interface TranslationDictionary {
   missingNormRefs: string;
   missingNormCover: string;
   missingNormCitations: string;
+
+  // Figures
+  insertFigure: string;
+  figureTitle: string;
+  figureCaption: string;
+  figureNote: string;
+  figureImage: string;
+  figureBasicInfo: string;
+  figureApaAttribution: string;
+  figureOriginalTitle: string;
+  figureAuthor: string;
+  figureYear: string;
+  figureSource: string;
+  figureUrl: string;
+  figureLicense: string;
+  figureImageRequired: string;
+  figureTitleRequired: string;
+  figure: string;
+  noteAdaptedFrom: string;
+  noteFrom: string;
+  figuresTab: string;
+  figuresTabEmpty: string;
+  figuresTabUnselected: string;
+
   [key: string]: string | string[];
 }

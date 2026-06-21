@@ -1,11 +1,11 @@
-import type { Rule, DocumentData, RuleResult } from '../types';
+import type { IRule, IDocumentData, IRuleResult } from '../types';
 
-export const referenceListRule: Rule = {
+export const referenceListRule: IRule = {
   id: 'apa7-references-exist',
   name: 'Referencias bibliográficas',
   description: 'Verifica la existencia de una sección de Referencias al final del documento.',
   weight: 30,
-  evaluate: (data: DocumentData): RuleResult => {
+  evaluate: (data: IDocumentData): IRuleResult => {
     // Heuristic: Check if "Referencias" or "References" exists as a heading or near the end.
     const referencesRegex = /(?:<h[1-3][^>]*>)\s*(?:Referencias|References)\s*(?:<\/h[1-3]>)/i;
     

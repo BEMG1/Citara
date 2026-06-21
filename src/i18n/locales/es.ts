@@ -221,7 +221,7 @@ export const es: TranslationDictionary = {
   missingNormCover: 'Completar portada.',
   missingNormCitations: 'Incorporar citas dentro del texto.',
 
-  // Engine Rule Names (from API)
+  // Engine IRule Names (from API)
   'Portada incompleta': 'Portada incompleta',
   'Portada': 'Portada',
   'Fuente permitida': 'Fuente permitida',
@@ -251,7 +251,7 @@ export const es: TranslationDictionary = {
   'crossRef.empty': 'No se encontraron citas ni referencias para cruzar.',
   'crossRef.untitled': 'Sin título',
 
-  // Engine Rule Messages (from API)
+  // Engine IRule Messages (from API)
   'Se mencionan referencias, pero no parece haber una sección con encabezado formal.': 'Se mencionan referencias, pero no parece haber una sección con encabezado formal.',
   'No se encontró la sección de Referencias.': 'No se encontró la sección de Referencias.',
   'Se encontró un encabezado de nivel 2 sin un nivel 1 previo.': 'Se encontró un encabezado de nivel 2 sin un nivel 1 previo.',
@@ -259,5 +259,28 @@ export const es: TranslationDictionary = {
   'Se detectó una fuente no recomendada (ej. Comic Sans).': 'Se detectó una fuente no recomendada (ej. Comic Sans).',
   'El documento es demasiado corto o no tiene portada clara.': 'El documento es demasiado corto o no tiene portada clara.',
   'No se pudo verificar claramente la estructura de la portada.': 'No se pudo verificar claramente la estructura de la portada.',
-  'Referencia sin título': 'Referencia sin título'
+  'Referencia sin título': 'Referencia sin título',
+
+  // Figures
+  insertFigure: 'Insertar Figura',
+  figureTitle: 'Título de la Figura',
+  figureCaption: 'Leyenda',
+  figureNote: 'Nota',
+  figureImage: 'Imagen',
+  figureBasicInfo: 'Información Básica',
+  figureApaAttribution: 'Atribución APA',
+  figureOriginalTitle: 'Título de la imagen original',
+  figureAuthor: 'Autor original',
+  figureYear: 'Año de publicación',
+  figureSource: 'Fuente original (ej. sitio web, libro)',
+  figureUrl: 'URL',
+  figureLicense: 'Licencia (ej. CC BY 4.0)',
+  figureImageRequired: 'Se requiere una imagen.',
+  figureTitleRequired: 'Se requiere un título.',
+  figure: 'Figura',
+  noteAdaptedFrom: 'Nota. Adaptado de',
+  noteFrom: 'Nota. De',
+  figuresTab: 'Figuras',
+  figuresTabEmpty: 'No hay figuras en el documento.',
+  figuresTabUnselected: 'Seleccione una figura en el editor para modificar sus propiedades.',
 };

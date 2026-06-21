@@ -1,21 +1,24 @@
 
-import type { CoverPage } from '../interfaces/ICoverPage';
-import type { Reference } from './referenceUtils';
+import type { ICoverPageData } from '@/interfaces/ICoverPage';
+import type { IReference } from './referenceUtils';
+import type { IFigure } from '@/interfaces/IFigure';
 
-export interface ExtractionResult {
-  coverPage: CoverPage | null;
-  references: Reference[];
+export interface IExtractionResult {
+  coverPage: ICoverPageData | null;
+  references: IReference[];
+  figures: IFigure[];
   bodyHtml: string;
 }
 
 export class DocumentExtractor {
-  static extract(html: string): ExtractionResult {
+  static extract(html: string): IExtractionResult {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const nodes = Array.from(doc.body.childNodes);
     
-    let coverPage: CoverPage | null = null;
-    let references: Reference[] = [];
+    let coverPage: ICoverPageData | null = null;
+    let references: IReference[] = [];
+    let figures: IFigure[] = [];
     
     let bodyStartIndex = 0;
     let bodyEndIndex = nodes.length;
@@ -129,14 +132,66 @@ export class DocumentExtractor {
       }
     }
 
-    // 3. Construct Cleaned HTML
+    // 3. Figures Detection Heuristic
     const bodyNodes = nodes.slice(bodyStartIndex, bodyEndIndex);
     const bodyContainer = doc.createElement('div');
     bodyNodes.forEach(node => bodyContainer.appendChild(node.cloneNode(true)));
     
+    const imgElements = Array.from(bodyContainer.querySelectorAll('img'));
+    imgElements.forEach((img, index) => {
+      // Intenta encontrar texto cercano que diga "Figura X"
+      let figureNumber = index + 1;
+      let figureTitle = `Figura Importada ${figureNumber}`;
+      let caption = '';
+      
+      const parentBlock = img.closest('p, div');
+      if (parentBlock) {
+        // Buscar el hermano anterior o texto anterior
+        const prevSibling = parentBlock.previousElementSibling;
+        if (prevSibling && prevSibling.textContent?.toLowerCase().includes('figura')) {
+          figureTitle = prevSibling.textContent.trim();
+          // Removemos el nodo anterior porque ya lo convertimos en titulo de la figura
+          prevSibling.remove();
+        }
+        
+        // Buscar el hermano siguiente para la leyenda o nota
+        const nextSibling = parentBlock.nextElementSibling;
+        if (nextSibling && nextSibling.textContent?.toLowerCase().includes('nota')) {
+          caption = nextSibling.textContent.trim();
+          nextSibling.remove();
+        }
+      }
+
+      const newFigure: IFigure = {
+        id: crypto.randomUUID(),
+        number: figureNumber,
+        imageUrl: img.src,
+        title: figureTitle,
+        note: caption,
+      };
+      
+      figures.push(newFigure);
+
+      // Reemplazamos el img por nuestro FigureNode de TipTap
+      const figureHtml = doc.createElement('figure');
+      figureHtml.setAttribute('data-type', 'figure');
+      figureHtml.setAttribute('id', newFigure.id);
+      figureHtml.setAttribute('number', newFigure.number.toString());
+      figureHtml.setAttribute('imageUrl', newFigure.imageUrl);
+      figureHtml.setAttribute('title', newFigure.title);
+      if (newFigure.note) figureHtml.setAttribute('note', newFigure.note);
+
+      if (parentBlock) {
+        parentBlock.replaceWith(figureHtml);
+      } else {
+        img.replaceWith(figureHtml);
+      }
+    });
+
     return {
       coverPage,
       references,
+      figures,
       bodyHtml: bodyContainer.innerHTML
     };
   }

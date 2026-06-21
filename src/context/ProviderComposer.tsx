@@ -1,11 +1,11 @@
 import { type ReactNode, type FC } from 'react';
 
-interface ProviderComposerProps {
+interface IProviderComposerProps {
   providers: Array<FC<{ children: ReactNode }>>;
   children: ReactNode;
 }
 
-const ProviderComposer: FC<ProviderComposerProps> = ({
+const ProviderComposer: FC<IProviderComposerProps> = ({
   providers,
   children,
 }) => {
