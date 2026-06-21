@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ICitationFormatter } from './types';
-import type { Reference } from '@/utils/referenceUtils';
+import type { IReference } from '@/utils/referenceUtils';
 import { getYear } from '@/utils/referenceUtils';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ export const ieeeFormatter: ICitationFormatter = {
   sectionHeading: (lang?: string) => tText('referencesHeading', lang),
 
   // ── Plain-text reference ──────────────────────────────────────────────────
-  formatReference(ref: Reference, lang?: string): string {
+  formatReference(ref: IReference, lang?: string): string {
     const authors = splitAuthors(ref.author || '');
     const formattedAuthors =
       authors.length > 0
@@ -99,7 +99,7 @@ export const ieeeFormatter: ICitationFormatter = {
   },
 
   // ── JSX preview ───────────────────────────────────────────────────────────
-  formatReferenceJSX(ref: Reference, lang?: string): React.ReactElement {
+  formatReferenceJSX(ref: IReference, lang?: string): React.ReactElement {
     const authors = splitAuthors(ref.author || '');
     const formattedAuthors =
       authors.length > 0
@@ -161,7 +161,7 @@ export const ieeeFormatter: ICitationFormatter = {
   },
 
   // ── In-text citation ──────────────────────────────────────────────────────
-  formatInTextCitation(_ref: Reference, index = 1, _lang?: string): string {
+  formatInTextCitation(_ref: IReference, index = 1, _lang?: string): string {
     return ` [${index}]`;
   },
 };

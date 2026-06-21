@@ -1,6 +1,6 @@
-import type { Reference } from "@/utils/referenceUtils";
+import type { IReference } from "@/utils/referenceUtils";
 
 export interface IReferences {
-  references: Reference[];
-  setReferences: React.Dispatch<React.SetStateAction<Reference[]>>;
+  references: IReference[];
+  setReferences: React.Dispatch<React.SetStateAction<IReference[]>>;
 }

@@ -1,18 +1,22 @@
 import { useRef, useState, useEffect } from 'react';
 import mammoth from 'mammoth';
 import { Upload, Trash2, Link as LinkIcon, Unlink, ChevronDown, BookOpen } from 'lucide-react';
-import { useDocument, useReferences, useLanguage, useCitationFormat, useCoverPage } from '@/context/AppContext';
+import { useDocument, useReferences, useLanguage, useCitationFormat, useCoverPage, useFigures } from '@/context/AppContext';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import { ReferenceMark } from './ReferenceMark';
-import { getReferenceText, type Reference, getYear } from '@/utils/referenceUtils';
+import { getReferenceText, type IReference, getYear } from '@/core/referenceUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ComplianceModal } from './ComplianceModal';
-import { ComplianceEngine } from '@/lib/ComplianceEngine/ComplianceEngine';
-import type { ComplianceReport } from '@/lib/ComplianceEngine/types';
-import { DocumentExtractor } from '@/utils/DocumentExtractor';
+import { ComplianceEngine } from '@/core/ComplianceEngine/ComplianceEngine';
+import type { ComplianceReport } from '@/core/ComplianceEngine/types';
+import { DocumentExtractor } from '@/core/DocumentExtractor';
+import { FigureNode } from './FigureNode';
+import { FigureModal } from './FigureModal';
+import { ImageIcon } from 'lucide-react';
+import type { IFigure } from '@/interfaces/IFigure';
 
 const applyTitleCase = (text: string) => {
   if (!text.trim()) return text;
@@ -71,8 +75,10 @@ const DocumentEditor: React.FC = () => {
   const { coverPage, setCoverPage } = useCoverPage();
   const { t, language } = useLanguage();
   const { citationFormat } = useCitationFormat();
+  const { figures, addFigure, setFigures, setEditorInstance } = useFigures();
   const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null);
   const [isNormalized, setIsNormalized] = useState(false);
+  const [isFigureModalOpen, setIsFigureModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -80,7 +86,7 @@ const DocumentEditor: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
 
   // Tooltip state
-  const [hoverInfo, setHoverInfo] = useState<{ ref: Reference; x: number; y: number } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{ ref: IReference; x: number; y: number } | null>(null);
 
   // Custom dropdown state for BubbleMenu
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -95,10 +101,33 @@ const DocumentEditor: React.FC = () => {
       }),
       ReferenceMark,
       AutoTitleCaseHeading,
+      FigureNode,
     ],
     content: text,
     onUpdate: ({ editor }) => {
       setText(editor.getHTML());
+
+      // Auto-renumber figures
+      setTimeout(() => {
+        if (editor.isDestroyed) return;
+        let number = 1;
+        let changed = false;
+        const { tr } = editor.state;
+        
+        editor.state.doc.descendants((node, pos) => {
+          if (node.type.name === 'figure') {
+            if (node.attrs.number !== number) {
+              tr.setNodeMarkup(pos, null, { ...node.attrs, number });
+              changed = true;
+            }
+            number++;
+          }
+        });
+
+        if (changed) {
+          editor.view.dispatch(tr);
+        }
+      }, 0);
     },
     editorProps: {
       attributes: {
@@ -106,6 +135,10 @@ const DocumentEditor: React.FC = () => {
       },
     },
   });
+
+  useEffect(() => {
+    setEditorInstance(editor);
+  }, [editor, setEditorInstance]);
 
   // Handle hover tooltips
   useEffect(() => {
@@ -216,7 +249,8 @@ const DocumentEditor: React.FC = () => {
         isNormalized,
         hasExtractedCoverPage: coverPage.enabled,
         hasExtractedReferences: references.length > 0,
-        references
+        references,
+        figures
       }, citationFormat);
 
       setComplianceScore(report.score);
@@ -224,7 +258,7 @@ const DocumentEditor: React.FC = () => {
     }, 500); // Debounce 500ms to avoid locking the UI
 
     return () => clearTimeout(timeoutId);
-  }, [text, citationFormat, isNormalized, editor, setComplianceScore, references, coverPage.enabled]);
+  }, [text, citationFormat, isNormalized, editor, setComplianceScore, references, coverPage.enabled, figures]);
 
   // --- File handling ---
 
@@ -241,8 +275,8 @@ const DocumentEditor: React.FC = () => {
       const result = await mammoth.convertToHtml({ arrayBuffer });
       const rawTextResult = await mammoth.extractRawText({ arrayBuffer });
 
-      // Intelligent Extraction
-      const { coverPage, references: extractedRefs, bodyHtml } = DocumentExtractor.extract(result.value);
+      // 2. Extract cover page, references and figures from the document structure
+      const { coverPage, references: extractedRefs, figures: extractedFigures, bodyHtml } = DocumentExtractor.extract(result.value);
 
       if (coverPage) {
         setCoverPage(coverPage);
@@ -250,6 +284,10 @@ const DocumentEditor: React.FC = () => {
       
       if (extractedRefs.length > 0) {
         setReferences(extractedRefs);
+      }
+
+      if (extractedFigures.length > 0) {
+        setFigures(extractedFigures);
       }
 
       if (editor) {
@@ -269,6 +307,7 @@ const DocumentEditor: React.FC = () => {
           hasExtractedCoverPage: coverPage !== null,
           hasExtractedReferences: extractedRefs.length > 0,
           references: extractedRefs.length > 0 ? extractedRefs : references,
+          figures: extractedFigures.length > 0 ? extractedFigures : figures,
         },
         citationFormat
       );
@@ -296,7 +335,8 @@ const DocumentEditor: React.FC = () => {
           isNormalized: true,
           hasExtractedCoverPage: coverPage.enabled,
           hasExtractedReferences: references.length > 0,
-          references
+          references,
+          figures
         },
         citationFormat
       );
@@ -371,10 +411,31 @@ const DocumentEditor: React.FC = () => {
   }
 
   // Bubble menu states
-  const isActiveRef = editor.isActive('reference');
+  const isActiveRefText = editor.isActive('reference');
+  const isActiveFigure = editor.isActive('figure');
+  const figureAttrs = isActiveFigure ? editor.getAttributes('figure') : {};
+  const hasFigureRef = isActiveFigure && !!figureAttrs.referenceId;
+  const isLinked = isActiveRefText || hasFigureRef;
+
+  const handleUnlink = () => {
+    if (isActiveFigure) {
+      editor.chain().focus().updateAttributes('figure', { referenceId: null }).run();
+    } else {
+      editor.chain().focus().unsetReference().run();
+    }
+  };
+
+  const handleLink = (refId: string) => {
+    if (isActiveFigure) {
+      editor.chain().focus().updateAttributes('figure', { referenceId: refId }).run();
+    } else {
+      editor.chain().focus().setReference(refId).run();
+    }
+    setIsDropdownOpen(false);
+  };
 
   const renderBubbleMenuContent = () => {
-    if (isActiveRef) {
+    if (isLinked) {
       return (
         <>
           <span className="text-xs font-medium px-2 flex items-center gap-1" style={{ color: 'var(--text-2)' }}>
@@ -383,7 +444,7 @@ const DocumentEditor: React.FC = () => {
           </span>
           <div className="w-px h-4 mx-1" style={{ background: 'var(--border)' }}></div>
           <button
-            onClick={() => editor.chain().focus().unsetReference().run()}
+            onClick={handleUnlink}
             className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
             style={{ color: 'var(--err)' }}
           >
@@ -392,7 +453,7 @@ const DocumentEditor: React.FC = () => {
           </button>
         </>
       );
-    }     
+    }
     else {
       return (
         <div className="relative" ref={dropdownRef}>
@@ -428,7 +489,7 @@ const DocumentEditor: React.FC = () => {
                   references.map((ref) => (
                     <button
                       key={ref.id}
-                      onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setReference(ref.id).run(); setIsDropdownOpen(false); }}
+                      onMouseDown={(e) => { e.preventDefault(); handleLink(ref.id); }}
                       className="w-full text-left px-3 py-2.5 rounded-lg transition-all flex flex-col gap-1"
                       style={{ border: '1px solid transparent' }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--accent-soft)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; }}
@@ -468,10 +529,14 @@ const DocumentEditor: React.FC = () => {
         </div>
       )}
 
-      {/* Bubble Menu for Reference Association */}
+      {/* Bubble Menu for IReference Association */}
       <BubbleMenu
         editor={editor}
-        shouldShow={({ editor, state }) => haveText && editor.isFocused && !state.selection.empty}
+        shouldShow={({ editor, state }) => {
+          if (!haveText || !editor.isFocused) return false;
+          if (editor.isActive('figure')) return true;
+          return !state.selection.empty && !editor.isActive('image');
+        }}
         className="flex rounded-md p-1 gap-1 items-center z-40" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 4px 12px -4px rgba(0,0,0,.4)' }}
       >
         {renderBubbleMenuContent()}
@@ -560,6 +625,22 @@ const DocumentEditor: React.FC = () => {
               <p>{t('paragraph')}</p>
             </TooltipContent>
           </Tooltip>
+          
+          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setIsFigureModalOpen(true)}
+                className={`${btnBase} ${btnIdle}`}
+              >
+                <ImageIcon size={14} className="inline mr-1" />
+                {t('insertFigure')}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('insertFigure')}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         {isNormalized && (
           <div className="mb-2 px-3 py-2 bg-green-900/30 border border-green-800/50 rounded-md text-sm text-green-300 flex items-center gap-2">
@@ -594,6 +675,44 @@ const DocumentEditor: React.FC = () => {
         isOpen={isComplianceModalOpen}
         onClose={() => setIsComplianceModalOpen(false)}
         onNormalize={handleNormalize}
+      />
+      
+      <FigureModal
+        isOpen={isFigureModalOpen}
+        onClose={() => setIsFigureModalOpen(false)}
+        onSave={(figureData) => {
+          const newFigure: IFigure = {
+            ...figureData,
+            id: crypto.randomUUID(),
+            number: figures.length + 1,
+          };
+          addFigure(newFigure);
+          
+          // Insert figure node
+          if (editor) {
+            editor.chain().focus().insertContent({
+              type: 'figure',
+              attrs: {
+                id: newFigure.id,
+                number: newFigure.number,
+                imageUrl: newFigure.imageUrl,
+                title: newFigure.title,
+                caption: newFigure.caption,
+                note: newFigure.note,
+                attributionType: newFigure.copyrightAttribution?.type,
+                attributionTitle: newFigure.copyrightAttribution?.title,
+                attributionAuthor: newFigure.copyrightAttribution?.author,
+                attributionYear: newFigure.copyrightAttribution?.year,
+                attributionPublisher: newFigure.copyrightAttribution?.publisher,
+                attributionJournal: newFigure.copyrightAttribution?.journal,
+                attributionSiteName: newFigure.copyrightAttribution?.siteName,
+                attributionChannel: newFigure.copyrightAttribution?.channel,
+                attributionUrl: newFigure.copyrightAttribution?.url,
+                attributionLicense: newFigure.copyrightAttribution?.license,
+              }
+            }).run();
+          }
+        }}
       />
     </div>
   );

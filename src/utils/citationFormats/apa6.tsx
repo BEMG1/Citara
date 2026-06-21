@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ICitationFormatter } from './types';
-import type { Reference } from '@/utils/referenceUtils';
+import type { IReference } from '@/utils/referenceUtils';
 import { getYear } from '@/utils/referenceUtils';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ export const apa6Formatter: ICitationFormatter = {
   sectionHeading: (lang?: string) => tText('referencesHeading', lang),
 
   // ── Plain-text reference ──────────────────────────────────────────────────
-  formatReference(ref: Reference, lang?: string): string {
+  formatReference(ref: IReference, lang?: string): string {
     const author = ref.author || tText('unknownAuthor', lang);
     const year = getYear(ref.year, lang);
     const title = ref.title || tText('unknownTitle', lang);
@@ -61,7 +61,7 @@ export const apa6Formatter: ICitationFormatter = {
   },
 
   // ── JSX preview ───────────────────────────────────────────────────────────
-  formatReferenceJSX(ref: Reference, lang?: string): React.ReactElement {
+  formatReferenceJSX(ref: IReference, lang?: string): React.ReactElement {
     const author = ref.author || tText('unknownAuthor', lang);
     const year = getYear(ref.year, lang);
     const title = ref.title || tText('unknownTitle', lang);
@@ -117,7 +117,7 @@ export const apa6Formatter: ICitationFormatter = {
   },
 
   // ── In-text citation ──────────────────────────────────────────────────────
-  formatInTextCitation(ref: Reference, _index?: number, lang?: string): string {
+  formatInTextCitation(ref: IReference, _index?: number, lang?: string): string {
     if (!ref) return '';
     const authorStr = ref.author?.trim() || tText('unknownAuthor', lang);
     const year = getYear(ref.year, lang);

@@ -2,13 +2,13 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import type { Language, TranslationDictionary } from '../i18n';
 import { es, en } from '../i18n';
 
-interface LanguageContextProps {
+interface ILanguageContext {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: <K extends keyof TranslationDictionary>(key: K) => TranslationDictionary[K];
 }
 
-const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
+const LanguageContext = createContext<ILanguageContext | undefined>(undefined);
 
 const dictionaries: Record<Language, TranslationDictionary> = { es, en };
 
@@ -39,7 +39,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   );
 };
 
-export const useLanguage = (): LanguageContextProps => {
+export const useLanguage = (): ILanguageContext => {
   const context = useContext(LanguageContext);
   if (!context) {
     throw new Error('useLanguage must be used within a LanguageProvider');

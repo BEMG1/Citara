@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useMemo, useCallback, type ReactNode } from "react";
 import { useDocument } from "./DocumentContext";
 import { useReferences } from "./ReferencesContext";
 import { useCitationFormat } from "./CitationFormatContext";
@@ -20,7 +20,17 @@ export const ExportPDFProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [showExportPdfWarning, setShowExportPdfWarning] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
-  const handleExportPdfClick = () => {
+  const executePdfExport = useCallback(async () => {
+    setIsExportingPdf(true);
+    try {
+      const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
+      await exportToPdf(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover]);
+
+  const handleExportPdfClick = useCallback(() => {
     const hasIncomplete = references.some(
       (ref) => !ref.author.trim() || !ref.title.trim(),
     );
@@ -29,22 +39,12 @@ export const ExportPDFProvider: React.FC<{ children: ReactNode }> = ({ children 
     } else {
       executePdfExport();
     }
-  };
+  }, [references, executePdfExport]);
 
-  const handleExportPdfAnyway = async () => {
+  const handleExportPdfAnyway = useCallback(async () => {
     setShowExportPdfWarning(false);
     await executePdfExport();
-  };
-
-  const executePdfExport = async () => {
-    setIsExportingPdf(true);
-    try {
-      const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
-      await exportToPdf(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover);
-    } finally {
-      setIsExportingPdf(false);
-    }
-  };
+  }, [executePdfExport]);
 
   const value = useMemo(
     () => ({

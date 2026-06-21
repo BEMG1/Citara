@@ -6,11 +6,11 @@ import React, {
   type ReactNode,
 } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import type { CoverPage, ICoverPage } from '@/interfaces/ICoverPage';
+import type { ICoverPageData, ICoverPageContext } from '@/interfaces/ICoverPage';
 
 // ─── Default values ────────────────────────────────────────────────────────────
 
-const DEFAULT_COVER_PAGE: CoverPage = {
+const DEFAULT_COVER_PAGE: ICoverPageData = {
   enabled: false,
   title: '',
   subtitle: '',
@@ -26,19 +26,19 @@ const DEFAULT_COVER_PAGE: CoverPage = {
 
 // ─── Context ───────────────────────────────────────────────────────────────────
 
-const CoverPageContext = createContext<ICoverPage | undefined>(undefined);
+const CoverPageContext = createContext<ICoverPageContext | undefined>(undefined);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 const CoverPageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [coverPage, setCoverPage] = useLocalStorage<CoverPage>(
+  const [coverPage, setCoverPage] = useLocalStorage<ICoverPageData>(
     'cover_page',
     DEFAULT_COVER_PAGE,
   );
 
   const updateField = useCallback(
-    <K extends keyof CoverPage>(field: K, value: CoverPage[K]) => {
-      setCoverPage((prev) => ({ ...prev, [field]: value }));
+    <K extends keyof ICoverPageData>(field: K, value: ICoverPageData[K]) => {
+      setCoverPage((prev: ICoverPageData) => ({ ...prev, [field]: value }));
     },
     [setCoverPage],
   );
@@ -61,7 +61,7 @@ const CoverPageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export const useCoverPage = (): ICoverPage => {
+export const useCoverPage = (): ICoverPageContext => {
   const context = useContext(CoverPageContext);
   if (context === undefined) {
     throw new Error('useCoverPage must be used within a CoverPageProvider');

@@ -1,16 +1,16 @@
-import type { Rule, DocumentData, RuleResult, ComplianceStatus } from '../types';
+import type { IRule, IDocumentData, IRuleResult, ComplianceStatus } from '../types';
 
 // i18n keys used in this rule (translated in ComplianceModal via t()):
 // name:    'crossRef.name'
 // msg ok:  'crossRef.ok'
 // msg err: 'crossRef.bothMissing' | 'crossRef.orphanCitations' | 'crossRef.unusedRefs' | 'crossRef.empty'
 
-export const crossReferenceRule: Rule = {
+export const crossReferenceRule: IRule = {
   id: 'apa7-cross-reference',
   name: 'crossRef.name',
   description: 'crossRef.desc',
   weight: 20,
-  evaluate: (data: DocumentData): RuleResult => {
+  evaluate: (data: IDocumentData): IRuleResult => {
     const references = data.references || [];
     
     // Parse HTML to find all in-text citations

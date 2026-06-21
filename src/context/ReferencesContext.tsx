@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import type { Reference } from "@/utils/referenceUtils";
+import type { IReference } from "@/utils/referenceUtils";
 import type { IReferences } from "@/interfaces/IReferences";
 
 const ReferencesContext = createContext<IReferences | undefined>(undefined);
 
 const ReferencesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [references, setReferences] = useLocalStorage<Reference[]>("references", []);
+  const [references, setReferences] = useLocalStorage<IReference[]>("references", []);
 
   const value = useMemo(
     () => ({ references, setReferences }),

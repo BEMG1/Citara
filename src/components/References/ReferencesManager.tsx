@@ -8,44 +8,11 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 import {
-  type Reference,
-  type ReferenceType,
-  getYear,
-  getYearError,
+  type IReference,
+  getYear
 } from '@/utils/referenceUtils';
 
-interface FieldProps {
-  label: string;
-  hint?: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  colSpan?: boolean;
-  error?: string;
-}
-
-const Field: React.FC<FieldProps> = ({ label, hint, value, onChange, placeholder, colSpan, error }) => (
-  <div className={colSpan ? 'sm:col-span-2' : ''}>
-    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-2)', fontFamily: 'var(--ui-font)' }}>
-      {label}
-      {hint && <span className="text-xs font-normal ml-1" style={{ color: 'var(--text-3)' }}>{hint}</span>}
-    </label>
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="block w-full sm:text-sm rounded-md px-3 py-2 outline-none transition-colors"
-      style={{
-        border: `1px solid ${error ? 'var(--err)' : 'var(--border)'}`,
-        background: 'var(--surface-2)',
-        color: 'var(--text)',
-        fontFamily: 'var(--ui-font)',
-      }}
-      placeholder={placeholder}
-    />
-    {error && <p className="mt-1 text-xs font-medium" style={{ color: 'var(--err)' }}>{error}</p>}
-  </div>
-);
+import { ReferenceFormFields } from './ReferenceFormFields';
 
 const ReferencesManager: React.FC = () => {
   const { references, setReferences } = useReferences();
@@ -56,7 +23,7 @@ const ReferencesManager: React.FC = () => {
   const [isSorted, setIsSorted] = useState(false);
 
   const addReference = () => {
-    const newRef: Reference = {
+    const newRef: IReference = {
       id: crypto.randomUUID(),
       type: 'book',
       author: '',
@@ -72,13 +39,13 @@ const ReferencesManager: React.FC = () => {
     if (expandedId === id) setExpandedId(null);
   };
 
-  const updateReference = (id: string, field: keyof Reference, value: string) => {
+  const updateReference = (id: string, field: keyof IReference, value: string) => {
     setReferences((prev) =>
       prev.map((ref) => (ref.id === id ? { ...ref, [field]: value } : ref))
     );
   };
 
-  const handleCopy = async (ref: Reference) => {
+  const handleCopy = async (ref: IReference) => {
     await navigator.clipboard.writeText(formatter.formatReference(ref, language));
     setCopiedId(ref.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -193,127 +160,10 @@ const ReferencesManager: React.FC = () => {
 
                 {expandedId === ref.id && (
                   <div className="p-4 space-y-4" style={{ borderTop: '1px solid var(--border)' }}>
-                    <div>
-                      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-2)', fontFamily: 'var(--ui-font)' }}>
-                        {t('sourceType')}
-                      </label>
-                      <select
-                        value={ref.type}
-                        onChange={(e) => updateReference(ref.id, 'type', e.target.value as ReferenceType)}
-                        className="block w-full pl-3 pr-10 py-2 text-sm rounded-md outline-none transition-colors"
-                        style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text)', fontFamily: 'var(--ui-font)' }}
-                      >
-                        <option value="book">{t('typeBook')}</option>
-                        <option value="article">{t('typeArticle')}</option>
-                        <option value="website">{t('typeWebsite')}</option>
-                        <option value="video">{t('typeVideo')}</option>
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field
-                        label={t('authors')}
-                        hint={t('authorsHint')}
-                        value={ref.author}
-                        onChange={(v) => updateReference(ref.id, 'author', v)}
-                        placeholder={t('authorsPlaceholder')}
-                        colSpan
-                      />
-                      <Field
-                        label={t('year')}
-                        value={ref.year}
-                        onChange={(v) => updateReference(ref.id, 'year', v)}
-                        placeholder={t('yearPlaceholder')}
-                        error={getYearError(ref.year)}
-                      />
-                      <Field
-                        label={t('title')}
-                        value={ref.title}
-                        onChange={(v) => updateReference(ref.id, 'title', v)}
-                        placeholder={t('titlePlaceholder')}
-                        colSpan
-                      />
-
-                      {ref.type === 'book' && (
-                        <Field
-                          label={t('publisher')}
-                          value={ref.publisher || ''}
-                          onChange={(v) => updateReference(ref.id, 'publisher', v)}
-                          placeholder={t('publisherPlaceholder')}
-                          colSpan
-                        />
-                      )}
-
-                      {ref.type === 'article' && (
-                        <>
-                          <Field
-                            label={t('journalName')}
-                            value={ref.journal || ''}
-                            onChange={(v) => updateReference(ref.id, 'journal', v)}
-                            placeholder={t('journalPlaceholder')}
-                            colSpan
-                          />
-                          <Field
-                            label={t('volume')}
-                            value={ref.volume || ''}
-                            onChange={(v) => updateReference(ref.id, 'volume', v)}
-                            placeholder="12"
-                          />
-                          <Field
-                            label={t('issue')}
-                            value={ref.issue || ''}
-                            onChange={(v) => updateReference(ref.id, 'issue', v)}
-                            placeholder="4"
-                          />
-                          <Field
-                            label={t('pages')}
-                            value={ref.pages || ''}
-                            onChange={(v) => updateReference(ref.id, 'pages', v)}
-                            placeholder="123-145"
-                            colSpan
-                          />
-                          <Field
-                            label={t('doi')}
-                            hint={t('doiHint')}
-                            value={ref.doi || ''}
-                            onChange={(v) => updateReference(ref.id, 'doi', v)}
-                            placeholder="10.1016/j.ejemplo.2024.01.001"
-                            colSpan
-                          />
-                        </>
-                      )}
-
-                      {(ref.type === 'website' || ref.type === 'video') && (
-                        <Field
-                          label={t('url')}
-                          value={ref.url || ''}
-                          onChange={(v) => updateReference(ref.id, 'url', v)}
-                          placeholder="https://..."
-                          colSpan
-                        />
-                      )}
-
-                      {ref.type === 'website' && (
-                        <Field
-                          label={t('siteName')}
-                          value={ref.siteName || ''}
-                          onChange={(v) => updateReference(ref.id, 'siteName', v)}
-                          placeholder={t('siteNamePlaceholder')}
-                          colSpan
-                        />
-                      )}
-
-                      {ref.type === 'video' && (
-                        <Field
-                          label={t('channelName')}
-                          value={ref.channel || ''}
-                          onChange={(v) => updateReference(ref.id, 'channel', v)}
-                          placeholder={t('channelPlaceholder')}
-                          colSpan
-                        />
-                      )}
-                    </div>
-
+                    <ReferenceFormFields 
+                      reference={ref}
+                      onChange={(field, value) => updateReference(ref.id, field, value)}
+                    />
                     <div className="mt-4 p-3 rounded-md" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
                       <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)' }}>
                         {t('preview')} · {FORMAT_CONFIGS[citationFormat].label}

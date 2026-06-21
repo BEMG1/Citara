@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ComplianceReport } from '@/lib/ComplianceEngine/types';
+import type { ComplianceReport } from '@/core/ComplianceEngine/types';
 import { useLanguage } from '@/context/AppContext';
 import { Check, X, AlertTriangle } from 'lucide-react';
 

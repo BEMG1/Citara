@@ -38,11 +38,6 @@ const DocumentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     setPageNumberPosition(null);
   }, [citationFormat, setPageNumberPosition]);
 
-  // If format changes, reset the page number position to default
-  useEffect(() => {
-    setPageNumberPosition(null);
-  }, [citationFormat, setPageNumberPosition]);
-
   const [complianceScore, setComplianceScore] = React.useState<number | null>(null);
   const [isComplianceModalOpen, setIsComplianceModalOpen] = React.useState<boolean>(false);
 

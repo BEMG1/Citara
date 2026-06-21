@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useMemo, useCallback, type ReactNode } from "react";
 import { useDocument } from "./DocumentContext";
 import { useReferences } from "./ReferencesContext";
 import { useCitationFormat } from "./CitationFormatContext";
@@ -17,7 +17,7 @@ export const ExportWordProvider: React.FC<{ children: ReactNode }> = ({ children
   const { language } = useLanguage();
   const [showExportWarning, setShowExportWarning] = useState(false);
 
-  const handleExportClick = () => {
+  const handleExportClick = useCallback(() => {
     const hasIncomplete = references.some(
       (ref) => !ref.author.trim() || !ref.title.trim(),
     );
@@ -27,13 +27,13 @@ export const ExportWordProvider: React.FC<{ children: ReactNode }> = ({ children
       const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
       exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover);
     }
-  };
+  }, [references, documentTitle, documentText, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover]);
 
-  const handleExportAnyway = async () => {
+  const handleExportAnyway = useCallback(async () => {
     setShowExportWarning(false);
     const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
     await exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover);
-  };
+  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover]);
 
   const value = useMemo(
     () => ({
