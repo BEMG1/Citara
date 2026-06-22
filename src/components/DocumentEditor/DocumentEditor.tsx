@@ -238,7 +238,7 @@ const DocumentEditor: React.FC = () => {
     }
   }, [editor, text]);
 
-  // Dynamic compliance evaluation
+  // Dynamic compliance evaluation — runs on mount and on any relevant dependency change
   useEffect(() => {
     if (!editor || !text) return;
 
@@ -255,9 +255,10 @@ const DocumentEditor: React.FC = () => {
 
       setComplianceScore(report.score);
       setComplianceReport(report);
-    }, 500); // Debounce 500ms to avoid locking the UI
+    }, 300); // Debounce 300ms to avoid locking the UI
 
     return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, citationFormat, isNormalized, editor, setComplianceScore, references, coverPage.enabled, figures]);
 
   // --- File handling ---

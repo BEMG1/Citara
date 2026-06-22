@@ -18,7 +18,9 @@ import {
   WidthType,
   BorderStyle,
   VerticalAlign,
+  TableOfContents,
 } from "docx";
+
 import { saveAs } from "file-saver";
 import type { PageNumberPosition } from "../context/DocumentContext";
 import type { IReference } from "./referenceUtils";
@@ -26,6 +28,8 @@ import { getYear } from "./referenceUtils";
 import type { ICitationFormatter } from "./citationFormats/types";
 import { apa7Formatter } from "./citationFormats/apa7.tsx";
 import type { ICoverPageData } from "../interfaces/ICoverPage";
+import { extractHeadings } from "./tocUtils";
+
 
 const margin = convertInchesToTwip(1);
 
@@ -268,6 +272,7 @@ export const exportToDocx = async (
   coverPage?: ICoverPageData,
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
+  generateTOC: boolean = false,
 ) => {
   // ── Sort references according to formatter's sort mode ─────────────────────
   let sortedRefs: IReference[];
@@ -613,7 +618,60 @@ export const exportToDocx = async (
       ]
     : [];
 
+  // ── TOC Section ─────────────────────────────────────────────────────────────
+  const tocLabel = lang === 'en' ? 'Table of Contents' : 'Tabla de Contenido';
+  const noHeadingsMsg = lang === 'en'
+    ? 'No valid headings found. Add headings to generate a table of contents.'
+    : 'No se encontraron títulos válidos. Agregue encabezados para generar la tabla de contenido.';
+
+  let tocSection: any[] = [];
+  if (generateTOC) {
+    const headings = extractHeadings(text);
+    const tocChildren: any[] = [
+      new Paragraph({
+        children: [new TextRun({ text: tocLabel, bold: true })],
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 240, line: 480 },
+      }),
+    ];
+
+    if (headings.length === 0) {
+      tocChildren.push(
+        new Paragraph({
+          children: [new TextRun({ text: noHeadingsMsg, italics: true })],
+          spacing: { line: 480 },
+        }),
+      );
+    } else {
+      tocChildren.push(
+        new TableOfContents(tocLabel, {
+          hyperlink: true,
+          headingStyleRange: "1-3",
+        }),
+      );
+    }
+
+    tocChildren.push(new Paragraph({ children: [new PageBreak()] }));
+
+    tocSection = [
+      {
+        properties: {
+          type: "nextPage" as const,
+          page: {
+            margin: { top: margin, right: margin, bottom: margin, left: margin },
+          },
+        },
+        footers: getFooters(),
+        headers: getHeaders(false),
+        children: tocChildren,
+      },
+    ];
+  }
+
+
   const doc = new Document({
+    features: { updateFields: true },
     styles: {
       default: {
         document: {
@@ -664,6 +722,7 @@ export const exportToDocx = async (
     },
     sections: [
       ...coverSection,
+      ...tocSection,
       {
         properties: {
           titlePage: (!coverPage?.enabled && !startNumberingOnCover) ? true : undefined,

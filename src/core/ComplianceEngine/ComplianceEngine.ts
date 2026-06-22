@@ -30,9 +30,10 @@ export class ComplianceEngine {
     const missingElements = results.filter(r => r.status === 'non-compliant');
     const warnings = results.filter(r => r.status === 'warning');
 
-    // Calculate score based on weights
-    const totalWeight = results.reduce((sum, r) => sum + r.weight, 0);
-    const earnedWeight = results.reduce((sum, r) => {
+    // Calculate score based on weights — skip 'not-applicable' rules entirely
+    const applicableResults = results.filter(r => r.status !== 'not-applicable');
+    const totalWeight = applicableResults.reduce((sum, r) => sum + r.weight, 0);
+    const earnedWeight = applicableResults.reduce((sum, r) => {
       if (r.status === 'compliant') return sum + r.weight;
       if (r.status === 'warning') return sum + (r.weight * 0.5); // Partial credit for warnings
       return sum;

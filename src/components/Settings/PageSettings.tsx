@@ -2,6 +2,8 @@ import { useDocument } from "@/context/DocumentContext";
 import { useCitationFormat } from "@/context/CitationFormatContext";
 import { Switch } from "@/components/ui/switch";
 import { useLanguage } from "@/context/LanguageContext";
+import { extractHeadings } from "@/utils/tocUtils";
+import { useMemo } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -15,6 +17,9 @@ export default function PageSettings() {
     setPageNumberPosition,
     startNumberingOnCover,
     setStartNumberingOnCover,
+    generateTOC,
+    setGenerateTOC,
+    documentText,
   } = useDocument();
 
   const { citationFormat } = useCitationFormat();
@@ -22,6 +27,9 @@ export default function PageSettings() {
 
   const defaultPositionForFormat = citationFormat === "ieee" ? "bottom-center" : "top-right";
   const currentPosition = pageNumberPosition || defaultPositionForFormat;
+
+  const headings = useMemo(() => extractHeadings(documentText), [documentText]);
+  const hasHeadings = headings.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -78,6 +86,64 @@ export default function PageSettings() {
                 onCheckedChange={setStartNumberingOnCover}
               />
             </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* ── Tabla de Contenido ───────────────────────────────────────────── */}
+        <AccordionItem value="toc" style={{ borderColor: "var(--border)" }}>
+          <AccordionTrigger className="text-base font-semibold hover:no-underline">
+            {t('tocSection')}
+          </AccordionTrigger>
+          <AccordionContent className="flex flex-col gap-4 pt-2 pb-4">
+            {/* TOC Switch */}
+            <div className="flex items-center justify-between p-3 rounded-lg border transition-colors duration-200" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+              <div className="flex flex-col gap-1 pr-4">
+                <label className="text-sm font-semibold cursor-pointer" style={{ color: "var(--text)" }} htmlFor="generate-toc">
+                  {t('tocToggle')}
+                </label>
+                <p className="text-xs" style={{ color: "var(--text-3)" }}>
+                  {t('tocToggleDesc')}
+                </p>
+              </div>
+              <Switch
+                id="generate-toc"
+                checked={generateTOC}
+                onCheckedChange={setGenerateTOC}
+              />
+            </div>
+
+            {/* Warning: no headings found */}
+            {generateTOC && !hasHeadings && (
+              <div
+                className="flex items-start gap-2 p-3 rounded-lg border text-xs"
+                style={{
+                  borderColor: "var(--warn)",
+                  background: "rgba(217, 119, 6, 0.08)",
+                  color: "var(--warn)",
+                }}
+              >
+                <span className="mt-0.5 shrink-0">⚠️</span>
+                <span>{t('tocNoHeadings')}</span>
+              </div>
+            )}
+
+            {/* Info: headings found */}
+            {generateTOC && hasHeadings && (
+              <div
+                className="flex items-start gap-2 p-3 rounded-lg border text-xs"
+                style={{
+                  borderColor: "var(--ok)",
+                  background: "rgba(5, 150, 105, 0.08)",
+                  color: "var(--ok)",
+                }}
+              >
+                <span className="mt-0.5 shrink-0">✓</span>
+                <span>
+                  {headings.length}{' '}
+                  {headings.length === 1 ? 'encabezado encontrado' : 'encabezados encontrados'}.
+                </span>
+              </div>
+            )}
           </AccordionContent>
         </AccordionItem>
       </Accordion>

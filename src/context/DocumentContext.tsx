@@ -10,6 +10,8 @@ interface IDocumentExtended extends IDocument {
   setPageNumberPosition: (pos: PageNumberPosition) => void;
   startNumberingOnCover: boolean;
   setStartNumberingOnCover: (val: boolean) => void;
+  generateTOC: boolean;
+  setGenerateTOC: (val: boolean) => void;
 }
 
 const DocumentContext = createContext<IDocumentExtended | undefined>(undefined);
@@ -31,6 +33,11 @@ const DocumentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [startNumberingOnCover, setStartNumberingOnCover] = useLocalStorage<boolean>(
     "startNumberingOnCover",
     true
+  );
+
+  const [generateTOC, setGenerateTOC] = useLocalStorage<boolean>(
+    "generateTOC",
+    false
   );
 
   // If format changes, reset the page number position to default
@@ -67,8 +74,10 @@ const DocumentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setPageNumberPosition,
       startNumberingOnCover,
       setStartNumberingOnCover,
+      generateTOC,
+      setGenerateTOC,
     }),
-    [documentText, setDocumentText, documentTitle, setDocumentTitle, haveText, complianceScore, isComplianceModalOpen, pageNumberPosition, setPageNumberPosition, startNumberingOnCover, setStartNumberingOnCover]
+    [documentText, setDocumentText, documentTitle, setDocumentTitle, haveText, complianceScore, isComplianceModalOpen, pageNumberPosition, setPageNumberPosition, startNumberingOnCover, setStartNumberingOnCover, generateTOC, setGenerateTOC]
   );
 
   return (

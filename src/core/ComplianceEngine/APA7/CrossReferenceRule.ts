@@ -1,4 +1,5 @@
 import type { IRule, IDocumentData, IRuleResult, ComplianceStatus } from '../types';
+import { detectAllCitedIds } from '../citationDetector';
 
 // i18n keys used in this rule (translated in ComplianceModal via t()):
 // name:    'crossRef.name'
@@ -12,21 +13,13 @@ export const crossReferenceRule: IRule = {
   weight: 20,
   evaluate: (data: IDocumentData): IRuleResult => {
     const references = data.references || [];
-    
-    // Parse HTML to find all in-text citations
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(data.html, 'text/html');
-    const marks = Array.from(doc.querySelectorAll('mark[data-reference-id]'));
-    
-    const citedIds = new Set(marks.map(m => m.getAttribute('data-reference-id')).filter(Boolean) as string[]);
-    
-    // Support for references associated directly to figures via Bubble Menu
-    const figures = Array.from(doc.querySelectorAll('figure[referenceid]'));
-    figures.forEach(fig => {
-      const refId = fig.getAttribute('referenceid');
-      if (refId) citedIds.add(refId);
-    });
-    
+
+    // Detect cited reference IDs via:
+    //  1. Citara markup: <mark data-reference-id="...">
+    //  2. Figure associations via Bubble Menu
+    //  3. Plain-text APA patterns: (Author, Year), (Author et al., Year), etc.
+    const citedIds = detectAllCitedIds(data.html, data.text, references);
+
     // Auto-generated references from figures are implicitly "cited" by the figure itself
     if (data.figures) {
       data.figures.forEach(fig => {
