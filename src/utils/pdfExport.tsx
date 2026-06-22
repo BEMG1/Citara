@@ -5,7 +5,9 @@ import type { ICitationFormatter } from './citationFormats/types';
 import type { ICoverPageData } from '../interfaces/ICoverPage';
 import type { PageNumberPosition } from '../context/DocumentContext';
 import { es, en } from '../i18n';
+import { estimateHeadingPages } from './tocUtils';
 import React from 'react';
+
 
 const tText = (key: keyof typeof es, lang?: string): string =>
   ((lang === 'en' ? en[key] : es[key]) ?? es[key]) as string;
@@ -133,6 +135,38 @@ const styles = StyleSheet.create({
   figureImage: {
     marginVertical: 12,
     maxWidth: '100%',
+  },
+  // TOC styles
+  tocTitle: {
+    fontFamily: 'Times-Bold',
+    fontSize: FONT_SIZE,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: LINE_HEIGHT,
+    color: '#000000',
+  },
+  tocEntry1: {
+    fontFamily: 'Times-Roman',
+    fontSize: FONT_SIZE,
+    marginBottom: 6,
+    lineHeight: 1.5,
+    color: '#000000',
+  },
+  tocEntry2: {
+    fontFamily: 'Times-Roman',
+    fontSize: FONT_SIZE,
+    marginBottom: 6,
+    marginLeft: 24,
+    lineHeight: 1.5,
+    color: '#000000',
+  },
+  tocEntry3: {
+    fontFamily: 'Times-Italic',
+    fontSize: FONT_SIZE,
+    marginBottom: 6,
+    marginLeft: 48,
+    lineHeight: 1.5,
+    color: '#000000',
   },
 });
 
@@ -281,6 +315,7 @@ const buildPdfDocument = (
   coverPage?: ICoverPageData,
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
+  generateTOC: boolean = false,
 ): React.ReactElement<any> => {
   const isIEEE = formatter.sortMode === 'appearance';
   
@@ -403,6 +438,39 @@ const buildPdfDocument = (
     );
   });
 
+  // ── TOC Page ──────────────────────────────────────────────────────────────
+  let tocPage: React.ReactElement | null = null;
+  if (generateTOC) {
+    const tocLabel = tText('tableOfContents', lang);
+    const tocPageLabel = tText('tocPage', lang);
+    const noHeadingsMsg = tText('tocNoHeadings', lang);
+    const hasCover = !!(coverPage?.enabled);
+    const tocEntries = estimateHeadingPages(text, hasCover, true);
+
+    tocPage = (
+      <Page size="LETTER" style={styles.page}>
+        <Text style={dynamicPageNumberStyle as any} render={renderPageNumber} fixed />
+        <Text style={styles.tocTitle}>{tocLabel}</Text>
+        {tocEntries.length === 0 ? (
+          <Text style={styles.paragraph}>{noHeadingsMsg}</Text>
+        ) : (
+          tocEntries.map((entry, i) => {
+            const entryStyle =
+              entry.level === 1 ? styles.tocEntry1
+              : entry.level === 2 ? styles.tocEntry2
+              : styles.tocEntry3;
+            return (
+              <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', ...entryStyle }}>
+                <Text style={{ flex: 1 }}>{entry.text}</Text>
+                <Text style={{ marginLeft: 8 }}>{tocPageLabel} {entry.page}</Text>
+              </View>
+            );
+          })
+        )}
+      </Page>
+    );
+  }
+
   return (
     <Document>
       {/* ── Cover Page ── */}
@@ -431,6 +499,9 @@ const buildPdfDocument = (
           </View>
         </Page>
       )}
+
+      {/* ── TOC Page ── */}
+      {tocPage}
 
       {/* ── Body Page(s) ── */}
       <Page size="LETTER" style={styles.page}>
@@ -471,9 +542,10 @@ export const exportToPdf = async (
   coverPage?: ICoverPageData,
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
+  generateTOC: boolean = false,
 ) => {
   try {
-    const docElement = buildPdfDocument(text, references, formatter, lang, coverPage, pageNumberPosition, startNumberingOnCover);
+    const docElement = buildPdfDocument(text, references, formatter, lang, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC);
     const pdfInstance = pdf(docElement);
     const blob = await pdfInstance.toBlob();
 

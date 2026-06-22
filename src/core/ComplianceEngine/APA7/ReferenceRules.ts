@@ -32,10 +32,12 @@ export const referenceListRule: IRule = {
       };
     }
 
-    // Check if there are any in-text citations
-    const hasInTextCitations = /<mark[^>]*data-reference-id/i.test(data.html);
+    // Check for in-text citations: either Citara markup OR plain-text APA patterns
+    const hasMarkupCitations = /<mark[^>]*data-reference-id/i.test(data.html);
+    // Plain-text pattern: (Author, YYYY) or (Author et al., YYYY)
+    const hasPlainTextCitations = /\([A-Za-záéíóúüñÁÉÍÓÚÜÑ][A-Za-záéíóúüñÁÉÍÓÚÜÑ\s\-']+(?:et\s+al\.?)?,?\s*\d{4}[a-z]?\)/i.test(data.text);
 
-    if (!hasInTextCitations && !data.hasExtractedReferences) {
+    if (!hasMarkupCitations && !hasPlainTextCitations && !data.hasExtractedReferences) {
       return {
         id: 'apa7-references-exist',
         name: 'Referencias bibliográficas',

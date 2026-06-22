@@ -10,7 +10,8 @@ import type { IExportWord } from "@/interfaces/IExportWord";
 const ExportWordContext = createContext<IExportWord | undefined>(undefined);
 
 export const ExportWordProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { documentText, documentTitle, pageNumberPosition, startNumberingOnCover } = useDocument();
+  const { documentText, documentTitle, pageNumberPosition, startNumberingOnCover, generateTOC } = useDocument();
+
   const { references } = useReferences();
   const { formatter } = useCitationFormat();
   const { coverPage } = useCoverPage();
@@ -25,15 +26,19 @@ export const ExportWordProvider: React.FC<{ children: ReactNode }> = ({ children
       setShowExportWarning(true);
     } else {
       const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
-      exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover);
+      exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC);
+
     }
-  }, [references, documentTitle, documentText, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover]);
+  }, [references, documentTitle, documentText, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC]);
+
 
   const handleExportAnyway = useCallback(async () => {
     setShowExportWarning(false);
     const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
-    await exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover);
-  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover]);
+    await exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC);
+
+  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC]);
+
 
   const value = useMemo(
     () => ({

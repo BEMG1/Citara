@@ -175,6 +175,14 @@ export const en: TranslationDictionary = {
   startNumberOnCover: 'Start numbering on cover',
   startNumberOnCoverDesc: 'If turned off, the first page will not have a number and the second page will start at 2.',
 
+  // Table of Contents
+  tocToggle: 'Generate table of contents',
+  tocToggleDesc: 'Automatically inserts a table of contents before the document body.',
+  tocSection: 'Table of contents',
+  tableOfContents: 'Table of Contents',
+  tocNoHeadings: 'No valid headings found. Add headings (Heading 1, Heading 2 or Heading 3) to the document to generate a table of contents.',
+  tocPage: 'Pg.',
+
   nd: 'n.d.',
   etAl: 'et al.',
   retrievedFrom: 'Retrieved from',

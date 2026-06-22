@@ -181,6 +181,14 @@ export interface TranslationDictionary {
   startNumberOnCover: string;
   startNumberOnCoverDesc: string;
 
+  // Table of Contents
+  tocToggle: string;
+  tocToggleDesc: string;
+  tocSection: string;
+  tableOfContents: string;
+  tocNoHeadings: string;
+  tocPage: string;
+
   // Citations / Formats (Generated texts)
   nd: string; // no date (s.f. / n.d.)
   etAl: string; // et al.

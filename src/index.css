@@ -79,7 +79,7 @@
 
   /* Documento A4 */
   --paper:       #13102e;
-  --paper-ink:   #18143A;
+  --paper-ink:   #EDE9FF;
   --paper-muted: #9A90C9;
   --hl:          rgba(245, 185, 66, 0.22);
 
@@ -704,8 +704,8 @@ code {
   font-family: "Times New Roman", Times, serif !important;
   font-size: 12pt !important;
   padding: 1in !important;
-  background-color: white !important;
-  color: black !important;
+  background-color: var(--paper) !important;
+  color: var(--paper-ink) !important;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   margin: 1rem auto !important;
   max-width: 8.5in !important;
@@ -723,7 +723,7 @@ code {
 .apa-normalized-doc .ProseMirror h1,
 .apa-normalized-doc .ProseMirror h2,
 .apa-normalized-doc .ProseMirror h3 {
-  color: black !important;
+  color: var(--paper-ink) !important;
 }
 
 

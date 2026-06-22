@@ -119,12 +119,32 @@ export class DocumentExtractor {
           const refNode = nodes[j];
           const refText = refNode.textContent?.trim();
           if (refText && refText.length > 10) {
+            // Try to parse APA format: "Author(s). (Year). Title..."
+            // or "Author(s) (Year). Title..."
+            const apaMatch = refText.match(/^(.+?)\.\s*\((\d{4}[a-z]?)\)/);
+            const apaMatchNoDot = !apaMatch ? refText.match(/^(.+?)\s+\((\d{4}[a-z]?)\)/) : null;
+            const match = apaMatch || apaMatchNoDot;
+
+            let parsedAuthor = '';
+            let parsedYear = '';
+            let parsedTitle = refText;
+
+            if (match) {
+              parsedAuthor = match[1].trim();
+              parsedYear = match[2].trim();
+              // Title = everything after "(Year). "
+              const afterYear = refText.slice(refText.indexOf(`(${parsedYear})`) + parsedYear.length + 2).trim();
+              parsedTitle = afterYear || refText;
+            }
+
             references.push({
               id: crypto.randomUUID(),
-              type: 'article', // fallback type
-              title: refText,
-              author: '',
-              year: '',
+              type: 'article',
+              title: parsedTitle,
+              author: parsedAuthor,
+              year: parsedYear,
+              // Keep full text accessible for display purposes
+              url: '', 
             });
           }
         }

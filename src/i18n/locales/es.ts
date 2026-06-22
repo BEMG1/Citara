@@ -175,6 +175,14 @@ export const es: TranslationDictionary = {
   startNumberOnCover: 'Iniciar numeración en la portada',
   startNumberOnCoverDesc: 'Si está apagado, la primera hoja no tendrá número y la segunda hoja iniciará en 2.',
 
+  // Table of Contents
+  tocToggle: 'Generar tabla de contenido',
+  tocToggleDesc: 'Inserta automáticamente una tabla de contenido antes del cuerpo del documento.',
+  tocSection: 'Tabla de contenido',
+  tableOfContents: 'Tabla de Contenido',
+  tocNoHeadings: 'No se encontraron títulos o encabezados válidos. Agregue encabezados (Título 1, Título 2 o Título 3) al documento para poder generar la tabla de contenido.',
+  tocPage: 'Pág.',
+
   nd: 's.f.',
   etAl: 'et al.',
   retrievedFrom: 'Recuperado de',

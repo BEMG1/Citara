@@ -11,7 +11,8 @@ import type { IExportPDF } from "@/interfaces/IExportPdf";
 const ExportPDFContext = createContext<IExportPDF | undefined>(undefined);
 
 export const ExportPDFProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { documentText, documentTitle, pageNumberPosition, startNumberingOnCover } = useDocument();
+  const { documentText, documentTitle, pageNumberPosition, startNumberingOnCover, generateTOC } = useDocument();
+
   const { references } = useReferences();
   const { formatter } = useCitationFormat();
   const { coverPage } = useCoverPage();
@@ -24,11 +25,13 @@ export const ExportPDFProvider: React.FC<{ children: ReactNode }> = ({ children 
     setIsExportingPdf(true);
     try {
       const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
-      await exportToPdf(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover);
+      await exportToPdf(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC);
+
     } finally {
       setIsExportingPdf(false);
     }
-  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover]);
+  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC]);
+
 
   const handleExportPdfClick = useCallback(() => {
     const hasIncomplete = references.some(
