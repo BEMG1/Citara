@@ -1,11 +1,14 @@
 import { useRef, useState, useEffect } from 'react';
 import mammoth from 'mammoth';
-import { Upload, Trash2, Link as LinkIcon, Unlink, ChevronDown, BookOpen } from 'lucide-react';
+import { Upload, Trash2, Link as LinkIcon, Unlink, ChevronDown, BookOpen, Bold, Italic, Underline as UnderlineIcon, Eraser, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Indent } from 'lucide-react';
 import { useDocument, useReferences, useLanguage, useCitationFormat, useCoverPage, useFigures } from '@/context/AppContext';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
+import Paragraph from '@tiptap/extension-paragraph';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
 import { ReferenceMark } from './ReferenceMark';
 import { getReferenceText, type IReference, getYear } from '@/core/referenceUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,6 +20,41 @@ import { FigureNode } from './FigureNode';
 import { FigureModal } from './FigureModal';
 import { ImageIcon } from 'lucide-react';
 import type { IFigure } from '@/interfaces/IFigure';
+
+
+
+const CustomParagraph = Paragraph.extend({
+  addAttributes() {
+    return {
+      indent: {
+        default: true,
+        parseHTML: element => element.getAttribute('data-indent') !== 'false',
+        renderHTML: attributes => {
+          if (attributes.indent === false) {
+            return { 'data-indent': 'false', class: 'no-indent', style: 'text-indent: 0px' };
+          }
+          return { 'data-indent': 'true' };
+        },
+      },
+    };
+  },
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        // Ignorar si estamos dentro de una lista, para que Tiptap maneje las viñetas correctamente
+        if (this.editor.isActive('bulletList') || this.editor.isActive('orderedList') || this.editor.isActive('listItem')) {
+          return false;
+        }
+
+        if (this.editor.isActive('paragraph')) {
+          // Asegurar que el nuevo párrafo vuelva a tener sangría (su estado por defecto)
+          return this.editor.chain().splitBlock().updateAttributes('paragraph', { indent: true }).run();
+        }
+        return false;
+      },
+    };
+  },
+});
 
 const applyTitleCase = (text: string) => {
   if (!text.trim()) return text;
@@ -54,8 +92,59 @@ const AutoTitleCaseHeading = Extension.create({
                editor.chain().deleteRange({ from: start, to: end }).insertContentAt(start, titleCased).run();
             }
           }
+          // Crear un párrafo normal con sangría después del encabezado (RF-002)
+          editor.chain().splitBlock().setNode('paragraph').updateAttributes('paragraph', { indent: true }).run();
+          return true;
         }
         return false;
+      }
+    }
+  }
+});
+
+const ListKeyboardShortcuts = Extension.create({
+  name: 'listKeyboardShortcuts',
+  addKeyboardShortcuts() {
+    return {
+      Tab: () => this.editor.commands.sinkListItem('listItem'),
+      'Shift-Tab': () => this.editor.commands.liftListItem('listItem'),
+    }
+  },
+});
+
+const applyListAutoFormat = (text: string) => {
+  if (!text.trim()) return text;
+  let newText = text.trim();
+  newText = newText.charAt(0).toUpperCase() + newText.slice(1);
+  if (!newText.endsWith('.')) {
+    newText += '.';
+  }
+  return newText;
+};
+
+const AutoFormatList = Extension.create({
+  name: 'autoFormatList',
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { editor } = this;
+        const { state } = editor;
+        const { $from } = state.selection;
+        
+        const listItem = $from.node($from.depth - 1);
+        if (listItem && listItem.type.name === 'listItem') {
+          const start = $from.start($from.depth);
+          const end = $from.end($from.depth);
+          const text = state.doc.textBetween(start, end, ' ');
+          
+          if (text.trim()) {
+            const formatted = applyListAutoFormat(text);
+            if (text !== formatted) {
+               editor.chain().deleteRange({ from: start, to: end }).insertContentAt(start, formatted).run();
+            }
+          }
+        }
+        return false; // Allow Tiptap's default Enter handler to continue
       }
     }
   }
@@ -95,12 +184,21 @@ const DocumentEditor: React.FC = () => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        paragraph: false,
         heading: {
           levels: [1, 2, 3],
         },
       }),
+      CustomParagraph,
+      Underline,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+        defaultAlignment: 'justify',
+      }),
       ReferenceMark,
       AutoTitleCaseHeading,
+      ListKeyboardShortcuts,
+      AutoFormatList,
       FigureNode,
     ],
     content: text,
@@ -132,9 +230,28 @@ const DocumentEditor: React.FC = () => {
     editorProps: {
       attributes: {
         class: 'focus:outline-none',
+        spellcheck: 'true',
+        lang: language,
       },
     },
   });
+
+  // Dynamic language update for spellcheck
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.setOptions({
+        editorProps: {
+          attributes: {
+            class: 'focus:outline-none',
+            spellcheck: 'true',
+            lang: language,
+          },
+        },
+      });
+      // Fallback: manually update the DOM if Tiptap doesn't re-render it instantly
+      editor.view.dom.setAttribute('lang', language);
+    }
+  }, [editor, language]);
 
   useEffect(() => {
     setEditorInstance(editor);
@@ -389,19 +506,25 @@ const DocumentEditor: React.FC = () => {
       if (text.trim()) {
         const titleCased = applyTitleCase(text);
 
-        editor.chain()
+        const chain = editor.chain()
           .focus()
           .deleteRange({ from: start, to: end })
           .insertContentAt(start, titleCased)
-          .toggleHeading({ level })
-          .run();
+          .toggleHeading({ level });
+        
+        if (level === 1) chain.setTextAlign('center');
+        chain.run();
       } else {
-        editor.chain().focus().toggleHeading({ level }).run();
+        const chain = editor.chain().focus().toggleHeading({ level });
+        if (level === 1) chain.setTextAlign('center');
+        chain.run();
       }
     } else {
-      editor.chain().focus().toggleHeading({ level }).run();
+      const chain = editor.chain().focus().toggleHeading({ level });
+      chain.setTextAlign('justify').run();
     }
   };
+
 
   const btnBase = 'px-2 py-1 text-xs font-mono font-bold border rounded transition-colors';
   const btnIdle = 'btn-tool-idle';
@@ -570,9 +693,168 @@ const DocumentEditor: React.FC = () => {
           </button>
         )}
       </div>
+        
 
       {/* Format toolbar */}
-        <div className="mb-1 flex items-center gap-1">
+        <div className="sticky top-16 z-40 bg-[var(--surface)] shadow-md border-b border-[var(--border)] p-1.5 flex flex-wrap items-center gap-1 mb-2 rounded-t-md">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                className={`${btnBase} ${editor.isActive('bold') ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive('bold')}
+                title="Negrita (Ctrl+B)"
+              >
+                <Bold size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Negrita (Ctrl+B)</p></TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                className={`${btnBase} ${editor.isActive('italic') ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive('italic')}
+                title="Cursiva (Ctrl+I)"
+              >
+                <Italic size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Cursiva (Ctrl+I)</p></TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                className={`${btnBase} ${editor.isActive('underline') ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive('underline')}
+                title="Subrayado (Ctrl+U)"
+              >
+                <UnderlineIcon size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Subrayado (Ctrl+U)</p></TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => editor.chain().focus().unsetBold().unsetItalic().unsetUnderline().run()}
+                className={`${btnBase} ${btnIdle}`}
+                title="Limpiar Formato"
+              >
+                <Eraser size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Limpiar Formato</p></TooltipContent>
+          </Tooltip>
+
+          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                className={`${btnBase} ${editor.isActive('bulletList') ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive('bulletList')}
+                title="Lista de Viñetas"
+              >
+                <List size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Lista de Viñetas</p></TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                className={`${btnBase} ${editor.isActive('orderedList') ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive('orderedList')}
+                title="Lista Numerada"
+              >
+                <ListOrdered size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Lista Numerada</p></TooltipContent>
+          </Tooltip>
+
+          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+
+          {/* RF-001: Deshabilitar alineación cuando el cursor está en un encabezado */}
+          {(() => { const isHeading = editor.isActive('heading'); return (
+          <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                disabled={isHeading}
+                onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'left' }) ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive({ textAlign: 'left' })}
+                title="Alinear a la Izquierda"
+              >
+                <AlignLeft size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Alinear a la Izquierda</p></TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                disabled={isHeading}
+                onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'center' }) ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive({ textAlign: 'center' })}
+                title="Centrar"
+              >
+                <AlignCenter size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Centrar</p></TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                disabled={isHeading}
+                onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'right' }) ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive({ textAlign: 'right' })}
+                title="Alinear a la Derecha"
+              >
+                <AlignRight size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Alinear a la Derecha</p></TooltipContent>
+          </Tooltip>
+          </>
+          )})()}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                disabled={!editor.isActive('paragraph') || editor.isActive('listItem')}
+                onClick={() => {
+                  if (!editor.isActive('paragraph') || editor.isActive('listItem')) return;
+                  const isCurrentlyDisabled = editor.isActive('paragraph', { indent: false });
+                  editor.chain().focus().updateAttributes('paragraph', { indent: isCurrentlyDisabled }).run();
+                }}
+                className={`${btnBase} ${(!editor.isActive('paragraph') || editor.isActive('listItem')) ? 'opacity-50 cursor-not-allowed' : ''} ${(editor.isActive('paragraph') && !editor.isActive('listItem') && !editor.isActive('paragraph', { indent: false })) ? btnActive : btnIdle}`}
+                aria-pressed={editor.isActive('paragraph') && !editor.isActive('listItem') && !editor.isActive('paragraph', { indent: false })}
+                title="Sangría automática"
+              >
+                <Indent size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent><p>Sangría automática</p></TooltipContent>
+          </Tooltip>
+
+          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -616,7 +898,7 @@ const DocumentEditor: React.FC = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => editor.chain().focus().setParagraph().run()}
+                onClick={() => editor.chain().focus().setParagraph().setTextAlign('justify').run()}
                 className={`${btnBase} ${editor.isActive('paragraph') ? btnActive : btnIdle}`}
               >
                 ¶
@@ -643,15 +925,54 @@ const DocumentEditor: React.FC = () => {
             </TooltipContent>
           </Tooltip>
         </div>
-        {isNormalized && (
-          <div className="mb-2 px-3 py-2 bg-green-900/30 border border-green-800/50 rounded-md text-sm text-green-300 flex items-center gap-2">
-            Documento normalizado automáticamente según reglas de {citationFormat === 'apa7' ? 'APA 7' : citationFormat === 'apa6' ? 'APA 6' : 'IEEE'}.
-          </div>
-        )}
+        
+
+      {/* Estilos de listas — inyectados con alta especificidad para sobrescribir el reset de Tailwind */}
+      <style>{`
+        div.tiptap.ProseMirror ul,
+        div.tiptap.ProseMirror ol {
+          list-style: none !important;
+          margin: 0 0 1em 2rem !important;
+          padding: 0 !important;
+        }
+        div.tiptap.ProseMirror li {
+          display: flex !important;
+          align-items: baseline !important;
+          margin-bottom: 0.4em !important;
+          text-indent: 0 !important;
+        }
+        div.tiptap.ProseMirror ul > li::before {
+          content: "•" !important;
+          flex-shrink: 0 !important;
+          min-width: 1.4rem !important;
+          font-size: 1.2em !important;
+          line-height: 2 !important;
+          color: currentColor !important;
+        }
+        div.tiptap.ProseMirror ol {
+          counter-reset: tiptap-list-counter !important;
+        }
+        div.tiptap.ProseMirror ol > li {
+          counter-increment: tiptap-list-counter !important;
+        }
+        div.tiptap.ProseMirror ol > li::before {
+          content: counter(tiptap-list-counter) "." !important;
+          flex-shrink: 0 !important;
+          min-width: 1.6rem !important;
+          font-size: 0.95em !important;
+          line-height: 2 !important;
+          color: currentColor !important;
+        }
+        div.tiptap.ProseMirror li > p {
+          flex: 1 !important;
+          text-indent: 0 !important;
+          margin-bottom: 0 !important;
+        }
+      `}</style>
 
       {/* Editor area */}
       <div
-        className={`relative flex-1 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 overflow-y-auto scrollbar-thin focus-within:ring-2 focus-within:ring-[color:var(--accent)] focus-within:outline-none transition-shadow duration-150 ${isNormalized ? 'apa-normalized-doc' : ''}`}
+        className={`relative flex-1 w-full overflow-y-auto min-h-0 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-[color:var(--accent)] focus-within:outline-none transition-shadow duration-150 ${isNormalized ? 'apa-normalized-doc' : ''}`}
         style={{ background: 'var(--surface)', border: `1px solid ${isDragging ? 'var(--accent)' : 'var(--border)'}` }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -670,6 +991,11 @@ const DocumentEditor: React.FC = () => {
           style={{ background: 'var(--paper)', color: 'var(--paper-ink, var(--text))' }}
         />
       </div>
+        {isNormalized && (
+          <div className="mb-2 px-3 py-2 bg-green-900/30 border border-green-800/50 rounded-md text-sm text-green-300 flex items-center gap-2">
+            Documento normalizado automáticamente según reglas de {citationFormat === 'apa7' ? 'APA 7' : citationFormat === 'apa6' ? 'APA 6' : 'IEEE'}.
+          </div>
+        )}
 
       <ComplianceModal
         report={complianceReport}

@@ -1,6 +1,8 @@
-import { pdf, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { pdf, Document, Page, Text, View, StyleSheet, Image, Link } from '@react-pdf/renderer';
 import type { IReference } from './referenceUtils';
 import { getYear } from './referenceUtils';
+import { HtmlParser } from '../core/export/HtmlParser';
+import type { InlineNode, ParagraphNode, HeadingNode, ListNode, ImageNode, TextRunNode, HyperlinkNode, CitationNode } from '../core/export/DocumentAST';
 import type { ICitationFormatter } from './citationFormats/types';
 import type { ICoverPageData } from '../interfaces/ICoverPage';
 import type { PageNumberPosition } from '../context/DocumentContext';
@@ -170,68 +172,51 @@ const styles = StyleSheet.create({
   },
 });
 
-// ─── Helpers para parsear nodos HTML ──────────────────────────────────────────
+// ─── Render AST nodes to React PDF ──────────────────────────────────────────
 
-interface ParsedRun {
-  text: string;
-  bold?: boolean;
-  italics?: boolean;
-}
-
-const parseHtmlNodeForPdf = (
-  node: Node,
-  references: IReference[],
-  formatter: ICitationFormatter,
-  refIndexMap: Map<string, number>,
-  lang?: string,
-): ParsedRun[] => {
-  if (node.nodeType === Node.TEXT_NODE) {
-    const txt = node.textContent || '';
-    if (!txt) return [];
-    return [{ text: txt }];
-  }
-  if (node.nodeType === Node.ELEMENT_NODE) {
-    const el = node as Element;
-    const childRuns = Array.from(node.childNodes).flatMap((child) =>
-      parseHtmlNodeForPdf(child, references, formatter, refIndexMap, lang)
-    );
-    if (childRuns.length === 0 && !el.textContent) return [];
-
-    let runs = childRuns;
-    if (el.tagName === 'STRONG' || el.tagName === 'B') {
-      runs = runs.map((r) => ({ ...r, bold: true }));
-    }
-    if (el.tagName === 'EM' || el.tagName === 'I') {
-      runs = runs.map((r) => ({ ...r, italics: true }));
-    }
-    if (el.tagName === 'MARK' || el.hasAttribute('data-reference-id')) {
-      const refId = el.getAttribute('data-reference-id');
-      const ref = references.find((r) => r.id === refId);
+const renderInlineNodes = (nodes: InlineNode[], references: IReference[], formatter: ICitationFormatter, refIndexMap: Map<string, number>, lang?: string): React.ReactNode => {
+  return nodes.map((node, i) => {
+    if (node.type === 'citation') {
+      const citationNode = node as CitationNode;
+      const ref = references.find(r => r.id === citationNode.refId);
       if (ref) {
         const idx = refIndexMap.get(ref.id);
         const citationText = formatter.formatInTextCitation(ref, idx, lang);
         if (citationText) {
-          runs.push({ text: citationText });
+          return <Text key={`cit-${i}`} style={{ fontFamily: 'Times-Roman', color: '#000000' }}>{citationText}</Text>;
         }
       }
+      return null;
     }
-    return runs;
-  }
-  return [];
-};
 
-// Renders inline runs with mixed bold/italic into nested Text elements
-const renderInlineRuns = (runs: ParsedRun[]): React.ReactNode => {
-  return runs.map((run, i) => {
-    let family = 'Times-Roman';
-    if (run.bold && run.italics) family = 'Times-BoldItalic';
-    else if (run.bold) family = 'Times-Bold';
-    else if (run.italics) family = 'Times-Italic';
-    return (
-      <Text key={i} style={{ fontFamily: family, color: '#000000' }}>
-        {run.text}
-      </Text>
-    );
+    if (node.type === 'hyperlink') {
+      const linkNode = node as HyperlinkNode;
+      return (
+        <Link key={`link-${i}`} src={linkNode.url} style={{ textDecoration: 'underline', color: '#0563C1', fontFamily: 'Times-Roman' }}>
+          {renderInlineNodes(linkNode.children, references, formatter, refIndexMap, lang)}
+        </Link>
+      );
+    }
+
+    if (node.type === 'text') {
+      const textNode = node as TextRunNode;
+      let family = 'Times-Roman';
+      if (textNode.format?.bold && textNode.format?.italic) family = 'Times-BoldItalic';
+      else if (textNode.format?.bold) family = 'Times-Bold';
+      else if (textNode.format?.italic) family = 'Times-Italic';
+      
+      let textStyle: any = { fontFamily: family, color: textNode.format?.highlight ? '#000000' : '#000000' };
+      if (textNode.format?.underline) {
+        textStyle.textDecoration = 'underline';
+      }
+
+      return (
+        <Text key={`txt-${i}`} style={textStyle}>
+          {textNode.text}
+        </Text>
+      );
+    }
+    return null;
   });
 };
 
@@ -242,21 +227,21 @@ const buildReferenceRuns = (
   formatter: ICitationFormatter,
   index: number,
   lang?: string,
-): ParsedRun[] => {
+): TextRunNode[] => {
   const author = ref.author || tText('unknownAuthor', lang);
   const year = getYear(ref.year, lang);
   const title = ref.title || tText('unknownTitle', lang);
 
   if (formatter.sortMode === 'appearance') {
-    return [{ text: `[${index}] ${formatter.formatReference(ref, lang)}` }];
+    return [{ type: 'text', text: `[${index}] ${formatter.formatReference(ref, lang)}` }];
   }
 
   switch (ref.type) {
     case 'book':
       return [
-        { text: `${author} (${year}). ` },
-        { text: `${title}. `, italics: true },
-        { text: `${ref.publisher || `[${tText('publisher', lang)}]`}.` },
+        { type: 'text', text: `${author} (${year}). ` },
+        { type: 'text', text: `${title}. `, format: { italic: true } },
+        { type: 'text', text: `${ref.publisher || `[${tText('publisher', lang)}]`}.` },
       ];
 
     case 'article': {
@@ -273,10 +258,10 @@ const buildReferenceRuns = (
         else if (urlIdx !== -1) doi = plain.slice(urlIdx);
       }
       return [
-        { text: `${author} (${year}). ${title}. ` },
-        { text: `${journal}, `, italics: true },
-        { text: `${volume}`, italics: true },
-        { text: `${issue}${pages}.${doi}` },
+        { type: 'text', text: `${author} (${year}). ${title}. ` },
+        { type: 'text', text: `${journal}, `, format: { italic: true } },
+        { type: 'text', text: `${volume}`, format: { italic: true } },
+        { type: 'text', text: `${issue}${pages}.${doi}` },
       ];
     }
 
@@ -284,9 +269,9 @@ const buildReferenceRuns = (
       const plain = formatter.formatReference(ref, lang);
       const afterTitle = plain.slice(plain.indexOf(title) + title.length + 2);
       return [
-        { text: `${author} (${year}). ` },
-        { text: `${title}. `, italics: true },
-        { text: afterTitle },
+        { type: 'text', text: `${author} (${year}). ` },
+        { type: 'text', text: `${title}. `, format: { italic: true } },
+        { type: 'text', text: afterTitle },
       ];
     }
 
@@ -294,14 +279,14 @@ const buildReferenceRuns = (
       const plain = formatter.formatReference(ref, lang);
       const afterTitle = plain.slice(plain.indexOf(title) + title.length + 1);
       return [
-        { text: `${author} (${year}). ` },
-        { text: `${title} `, italics: true },
-        { text: afterTitle },
+        { type: 'text', text: `${author} (${year}). ` },
+        { type: 'text', text: `${title} `, format: { italic: true } },
+        { type: 'text', text: afterTitle },
       ];
     }
 
     default:
-      return [{ text: formatter.formatReference(ref, lang) }];
+      return [{ type: 'text', text: formatter.formatReference(ref, lang) }];
   }
 };
 
@@ -358,73 +343,66 @@ const buildPdfDocument = (
   const refIndexMap = new Map<string, number>(sortedRefs.map((r, i) => [r.id, i + 1]));
 
   // Parse body blocks
+  const ast = HtmlParser.parse(text);
   const bodyBlocks: React.ReactElement[] = [];
-  htmlDoc.body.childNodes.forEach((node, idx) => {
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-    const el = node as Element;
-    const tag = el.tagName.toUpperCase();
-    const isFigure = tag === 'FIGURE' || el.getAttribute('data-type') === 'figure';
-    const runs = Array.from(el.childNodes).flatMap((child) =>
-      parseHtmlNodeForPdf(child, references, formatter, refIndexMap, lang)
-    );
-    if (runs.length === 0 && !el.textContent?.trim() && !isFigure) return;
 
-    if (tag === 'H1') {
-      bodyBlocks.push(<Text key={idx} style={styles.h1}>{renderInlineRuns(runs)}</Text>);
-    } else if (tag === 'H2') {
-      bodyBlocks.push(<Text key={idx} style={styles.h2}>{renderInlineRuns(runs)}</Text>);
-    } else if (tag === 'H3') {
-      bodyBlocks.push(<Text key={idx} style={styles.h3}>{renderInlineRuns(runs)}</Text>);
-    } else if (tag === 'FIGURE' || el.getAttribute('data-type') === 'figure') {
-      const number = el.getAttribute("number");
-      const title = el.getAttribute("title");
-      const imageUrl = el.getAttribute("imageurl") || el.getAttribute("imageUrl");
-      const caption = el.getAttribute("caption");
-      const note = el.getAttribute("note");
-      
-      if (number) {
-        bodyBlocks.push(<Text key={`${idx}-number`} style={{ ...styles.paragraph, fontFamily: 'Times-Bold' }}>Figura {number}</Text>);
-      }
-      if (title) {
-        bodyBlocks.push(<Text key={`${idx}-title`} style={{ ...styles.paragraph, fontFamily: 'Times-Italic', marginBottom: 12 }}>{title}</Text>);
-      }
-      if (imageUrl && imageUrl.startsWith('data:image')) {
-        bodyBlocks.push(<Image key={`${idx}-img`} src={imageUrl} style={styles.figureImage} />);
-      }
-      if (caption) {
-        bodyBlocks.push(<Text key={`${idx}-caption`} style={styles.paragraph}>{caption}</Text>);
-      }
-      
-      let fullNote = note || "";
-      const attrType = el.getAttribute("attributionType") || el.getAttribute("attributiontype");
-      if (attrType) {
-        const attrTitle = el.getAttribute("attributionTitle") || el.getAttribute("attributiontitle");
-        const attrAuthor = el.getAttribute("attributionAuthor") || el.getAttribute("attributionauthor");
-        const attrYear = el.getAttribute("attributionYear") || el.getAttribute("attributionyear");
-        const attrPublisher = el.getAttribute("attributionPublisher") || el.getAttribute("attributionpublisher");
-        const attrJournal = el.getAttribute("attributionJournal") || el.getAttribute("attributionjournal");
-        const attrSiteName = el.getAttribute("attributionSiteName") || el.getAttribute("attributionsitename");
-        const attrChannel = el.getAttribute("attributionChannel") || el.getAttribute("attributionchannel");
-        const attrLicense = el.getAttribute("attributionLicense") || el.getAttribute("attributionlicense");
+  const getAlign = (align?: string) => {
+    switch(align) {
+      case 'center': return 'center';
+      case 'right': return 'right';
+      case 'left': return 'left';
+      case 'justify': return 'justify';
+      default: return undefined;
+    }
+  };
 
-        const sourceName = attrJournal || attrPublisher || attrSiteName || attrChannel;
-        
-        const parts = [];
-        if (attrTitle) parts.push(`"${attrTitle}"`);
-        if (attrAuthor) parts.push(`por ${attrAuthor}`);
-        if (attrYear) parts.push(attrYear);
-        if (sourceName) parts.push(sourceName);
-        if (attrLicense) parts.push(attrLicense);
+  ast.children.forEach((node, idx) => {
+    if (node.type === 'list') {
+      const listNode = node as ListNode;
+      listNode.children.forEach((item, itemIdx) => {
+        const bulletText = listNode.ordered ? `${itemIdx + 1}.  ` : '•   ';
+        bodyBlocks.push(
+          <Text key={`li-${idx}-${itemIdx}`} style={{ ...styles.paragraph, textIndent: 0, paddingLeft: 36, textAlign: 'left' }}>
+            <Text style={{ fontFamily: 'Times-Roman' }}>{bulletText}</Text>
+            {item.children.map(block => {
+              if (block.type === 'paragraph') {
+                return renderInlineNodes((block as ParagraphNode).children, references, formatter, refIndexMap, lang);
+              }
+              return null;
+            })}
+          </Text>
+        );
+      });
+      return;
+    }
 
-        const generatedNote = parts.length > 0 ? `Nota. Adaptado de ${parts.join(', ')}.` : '';
-        fullNote = fullNote ? `${fullNote} ${generatedNote}` : generatedNote;
+    if (node.type === 'heading') {
+      const hNode = node as HeadingNode;
+      if (hNode.level === 1) {
+        bodyBlocks.push(<Text key={`h1-${idx}`} style={{ ...styles.h1, textAlign: getAlign(hNode.format?.alignment) || 'center' }}>{renderInlineNodes(hNode.children, references, formatter, refIndexMap, lang)}</Text>);
+      } else if (hNode.level === 2) {
+        bodyBlocks.push(<Text key={`h2-${idx}`} style={{ ...styles.h2, textAlign: getAlign(hNode.format?.alignment) || 'left' }}>{renderInlineNodes(hNode.children, references, formatter, refIndexMap, lang)}</Text>);
+      } else if (hNode.level === 3) {
+        bodyBlocks.push(<Text key={`h3-${idx}`} style={{ ...styles.h3, textAlign: getAlign(hNode.format?.alignment) || 'left' }}>{renderInlineNodes(hNode.children, references, formatter, refIndexMap, lang)}</Text>);
       }
+      return;
+    }
 
-      if (fullNote) {
-        bodyBlocks.push(<Text key={`${idx}-note`} style={{ ...styles.paragraph, marginTop: 12 }}>{fullNote}</Text>);
+    if (node.type === 'image') {
+      const imgNode = node as ImageNode;
+      if (imgNode.src && imgNode.src.startsWith('data:image')) {
+        bodyBlocks.push(<Image key={`img-${idx}`} src={imgNode.src} style={styles.figureImage} />);
       }
-    } else {
-      bodyBlocks.push(<Text key={idx} style={styles.paragraph}>{renderInlineRuns(runs)}</Text>);
+      if (imgNode.caption) {
+        bodyBlocks.push(<Text key={`imgcap-${idx}`} style={{...styles.paragraph, textAlign: getAlign(imgNode.alignment) || 'left'}}>{imgNode.caption}</Text>);
+      }
+      return;
+    }
+
+    if (node.type === 'paragraph') {
+      const pNode = node as ParagraphNode;
+      if (pNode.children.length === 0) return;
+      bodyBlocks.push(<Text key={`p-${idx}`} style={{ ...styles.paragraph, textAlign: getAlign(pNode.format?.alignment) || 'justify' }}>{renderInlineNodes(pNode.children, references, formatter, refIndexMap, lang)}</Text>);
     }
   });
 
@@ -433,7 +411,7 @@ const buildPdfDocument = (
     const runs = buildReferenceRuns(ref, formatter, i + 1, lang);
     return (
       <Text key={ref.id} style={isIEEE ? styles.referenceItemIEEE : styles.referenceItem}>
-        {renderInlineRuns(runs)}
+        {renderInlineNodes(runs, references, formatter, refIndexMap, lang)}
       </Text>
     );
   });

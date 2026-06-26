@@ -685,6 +685,53 @@ code {
   margin-bottom: 1em;
   line-height: 2;
 }
+.ProseMirror p[data-indent="false"],
+.ProseMirror p.no-indent {
+  text-indent: 0 !important;
+}
+
+/* Listas en ProseMirror — Tiptap envuelve el contenido en <p>, usamos flexbox para garantizar visibilidad */
+.ProseMirror ul,
+.ProseMirror ol {
+  list-style: none !important;
+  margin-left: 2rem;
+  margin-bottom: 1em;
+  padding: 0;
+}
+.ProseMirror li {
+  display: flex !important;
+  align-items: flex-start;
+  margin-bottom: 0.4em;
+}
+/* Viñeta (bullet) */
+.ProseMirror ul > li::before {
+  content: "•";
+  flex-shrink: 0;
+  width: 1.4rem;
+  color: currentColor;
+  font-size: 1.1em;
+  line-height: 2;
+}
+/* Número para listas ordenadas */
+.ProseMirror ol {
+  counter-reset: list-counter;
+}
+.ProseMirror ol > li {
+  counter-increment: list-counter;
+}
+.ProseMirror ol > li::before {
+  content: counter(list-counter) ".";
+  flex-shrink: 0;
+  width: 1.6rem;
+  color: currentColor;
+  font-size: 0.95em;
+  line-height: 2;
+}
+.ProseMirror li > p {
+  flex: 1;
+  text-indent: 0 !important;
+  margin-bottom: 0;
+}
 
 .theme-dani .scrollbar-thin::-webkit-scrollbar-thumb {
   background: #f9a8d4; /* pink-300 */
@@ -718,6 +765,10 @@ code {
   text-align: left !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
+}
+.apa-normalized-doc .ProseMirror p[data-indent="false"],
+.apa-normalized-doc .ProseMirror p.no-indent {
+  text-indent: 0 !important;
 }
 
 .apa-normalized-doc .ProseMirror h1,
