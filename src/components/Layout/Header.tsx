@@ -13,7 +13,7 @@ const Header: React.FC = () => {
   const { citationFormat } = useCitationFormat();
   
   return (
-    <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10" style={{ background: 'var(--bg)', borderBottomColor: 'var(--border)' }}>
+    <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50" style={{ background: 'var(--bg)', borderBottomColor: 'var(--border)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap gap-4 justify-between items-center">
         {/* ── Brand ── */}
         <div className="flex items-center gap-6">

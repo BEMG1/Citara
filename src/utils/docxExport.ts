@@ -19,6 +19,8 @@ import {
   BorderStyle,
   VerticalAlign,
   TableOfContents,
+  ExternalHyperlink,
+  UnderlineType,
 } from "docx";
 
 import { saveAs } from "file-saver";
@@ -30,6 +32,9 @@ import { apa7Formatter } from "./citationFormats/apa7.tsx";
 import type { ICoverPageData } from "../interfaces/ICoverPage";
 import { extractHeadings } from "./tocUtils";
 
+
+import { HtmlParser } from "../core/export/HtmlParser";
+import type { InlineNode, BlockNode, ParagraphNode, HeadingNode, ListNode, ImageNode, TextRunNode, HyperlinkNode, CitationNode } from "../core/export/DocumentAST";
 
 const margin = convertInchesToTwip(1);
 
@@ -305,208 +310,153 @@ export const exportToDocx = async (
     sortedRefs.map((ref, i) => [ref.id, i + 1]),
   );
 
-  // ── HTML parsing helpers ───────────────────────────────────────────────────
+  // ── HTML parsing via Central AST ───────────────────────────────────────────────────
 
-  interface ParsedRun {
-    text: string;
-    bold?: boolean;
-    italics?: boolean;
-    highlighted?: boolean;
-  }
+  const ast = HtmlParser.parse(text);
 
-  const parseHtmlNode = (node: Node): ParsedRun[] => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return [{ text: node.textContent || "" }];
+  const getDocxAlignment = (align?: string) => {
+    switch (align) {
+      case 'center': return AlignmentType.CENTER;
+      case 'right': return AlignmentType.RIGHT;
+      case 'left': return AlignmentType.LEFT;
+      case 'justify': return AlignmentType.JUSTIFIED;
+      default: return undefined;
     }
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const el = node as Element;
-      const childrenRuns = Array.from(node.childNodes).flatMap(parseHtmlNode);
-      if (childrenRuns.length === 0 && !el.textContent) return [];
-
-      let updatedRuns = childrenRuns;
-      if (el.tagName === "STRONG" || el.tagName === "B") {
-        updatedRuns = updatedRuns.map((r) => ({ ...r, bold: true }));
-      }
-      if (el.tagName === "EM" || el.tagName === "I") {
-        updatedRuns = updatedRuns.map((r) => ({ ...r, italics: true }));
-      }
-      if (el.tagName === "MARK" || el.hasAttribute("data-reference-id")) {
-        const refId = el.getAttribute("data-reference-id");
-        const ref = references.find((r) => r.id === refId);
-        updatedRuns = updatedRuns.map((r) => ({ ...r, highlighted: true }));
-        if (ref) {
-          const idx = refIndexMap.get(ref.id);
-          const citationText = formatter.formatInTextCitation(ref, idx, lang);
-          if (citationText) {
-            updatedRuns.push({ text: citationText, highlighted: false });
-          }
-        }
-      }
-      return updatedRuns;
-    }
-    return [];
   };
 
-  const parseHtmlBlock = (element: Element): Paragraph | Paragraph[] | null => {
-    const tagName = element.tagName.toUpperCase();
-    const childrenNodes = Array.from(element.childNodes).flatMap(parseHtmlNode);
-
-    const isFigure = tagName === "FIGURE" || (element.hasAttribute("data-type") && element.getAttribute("data-type") === "figure");
-
-    if (childrenNodes.length === 0 && !isFigure) return null;
-
-    if (tagName === "H1") {
-      return new Paragraph({
-        children: childrenNodes.map((r) => new TextRun({ text: r.text, bold: true })),
-        heading: HeadingLevel.HEADING_1,
-        alignment: AlignmentType.CENTER,
-        spacing: { line: 480 },
+  const mapInlineNode = (node: InlineNode): any => {
+    if (node.type === 'text') {
+      const textNode = node as TextRunNode;
+      return new TextRun({
+        text: textNode.text,
+        bold: textNode.format?.bold,
+        italics: textNode.format?.italic,
+        underline: textNode.format?.underline ? { type: UnderlineType.SINGLE } : undefined,
+        color: textNode.format?.highlight ? "000000" : undefined,
       });
     }
-    if (tagName === "H2") {
-      return new Paragraph({
-        children: childrenNodes.map((r) => new TextRun({ text: r.text, bold: true })),
-        heading: HeadingLevel.HEADING_2,
-        alignment: AlignmentType.LEFT,
-        spacing: { line: 480 },
-      });
+    if (node.type === 'hyperlink') {
+      const linkNode = node as HyperlinkNode;
+      const children = linkNode.children.map(c => mapInlineNode(c));
+      return new ExternalHyperlink({ link: linkNode.url, children });
     }
-    if (tagName === "H3") {
-      return new Paragraph({
-        children: childrenNodes.map((r) =>
-          new TextRun({ text: r.text, bold: true, italics: true }),
-        ),
-        heading: HeadingLevel.HEADING_3,
-        alignment: AlignmentType.LEFT,
-        spacing: { line: 480 },
-      });
+    if (node.type === 'citation') {
+      const citationNode = node as CitationNode;
+      const ref = references.find(r => r.id === citationNode.refId);
+      if (ref) {
+        const idx = refIndexMap.get(ref.id);
+        const citationText = formatter.formatInTextCitation(ref, idx, lang);
+        if (citationText) {
+          return new TextRun({ text: citationText });
+        }
+      }
+      return new TextRun({ text: "" });
     }
-    if (tagName === "P") {
+    return new TextRun({ text: "" });
+  };
+
+  const mapBlockNode = (node: BlockNode): Paragraph | Paragraph[] | null => {
+    if (node.type === 'paragraph') {
+      const pNode = node as ParagraphNode;
       return new Paragraph({
-        children: childrenNodes.map((r) =>
-          new TextRun({ text: r.text, bold: r.bold, italics: r.italics }),
-        ),
-        alignment: AlignmentType.JUSTIFIED,
+        children: pNode.children.map(mapInlineNode),
+        alignment: getDocxAlignment(pNode.format?.alignment) || AlignmentType.JUSTIFIED,
         indent: { firstLine: convertInchesToTwip(0.5) },
         spacing: { line: 480 },
       });
     }
-    if (tagName === "FIGURE" || (element.hasAttribute("data-type") && element.getAttribute("data-type") === "figure")) {
-      const number = element.getAttribute("number");
-      const title = element.getAttribute("title");
-      const imageUrl = element.getAttribute("imageurl") || element.getAttribute("imageUrl");
-      const caption = element.getAttribute("caption");
-      const note = element.getAttribute("note");
-      
+
+    if (node.type === 'heading') {
+      const hNode = node as HeadingNode;
+      let headingLvl: any = HeadingLevel.HEADING_1;
+      let defaultAlign: any = AlignmentType.CENTER;
+      let childrenRuns = hNode.children.map(mapInlineNode);
+
+      if (hNode.level === 1) {
+        headingLvl = HeadingLevel.HEADING_1;
+        defaultAlign = AlignmentType.CENTER;
+      } else if (hNode.level === 2) {
+        headingLvl = HeadingLevel.HEADING_2;
+        defaultAlign = AlignmentType.LEFT;
+      } else if (hNode.level === 3) {
+        headingLvl = HeadingLevel.HEADING_3;
+        defaultAlign = AlignmentType.LEFT;
+      }
+
+      return new Paragraph({
+        children: childrenRuns,
+        heading: headingLvl,
+        alignment: getDocxAlignment(hNode.format?.alignment) || defaultAlign,
+        spacing: { line: 480 },
+      });
+    }
+
+    if (node.type === 'list') {
+      const listNode = node as ListNode;
+      return listNode.children.map((item, index) => {
+        const bulletText = listNode.ordered ? `${index + 1}. ` : "•  ";
+        
+        // Flatten all paragraphs inside list item into a single paragraph for now
+        const itemChildren: any[] = [new TextRun({ text: bulletText })];
+        item.children.forEach(block => {
+          if (block.type === 'paragraph') {
+            const p = block as ParagraphNode;
+            itemChildren.push(...p.children.map(mapInlineNode));
+          }
+        });
+
+        return new Paragraph({
+          children: itemChildren,
+          alignment: AlignmentType.LEFT,
+          indent: { left: convertInchesToTwip(0.5), hanging: convertInchesToTwip(0.25) },
+          spacing: { line: 480 },
+        });
+      });
+    }
+
+    if (node.type === 'image') {
+      const imgNode = node as ImageNode;
       const figureParagraphs: Paragraph[] = [];
-      
-      if (number) {
-        figureParagraphs.push(new Paragraph({
-          children: [new TextRun({ text: `Figura ${number}`, bold: true })],
-          alignment: AlignmentType.LEFT,
-          spacing: { before: 240, after: 120, line: 480 },
-        }));
-      }
 
-      if (title) {
-        figureParagraphs.push(new Paragraph({
-          children: [new TextRun({ text: title, italics: true })],
-          alignment: AlignmentType.LEFT,
-          spacing: { before: 0, after: 240, line: 480 },
-        }));
-      }
-
-      if (imageUrl && imageUrl.startsWith('data:image')) {
-        const imageBytes = base64ToUint8Array(imageUrl);
-        const match = imageUrl.match(/^data:image\/(png|jpeg|jpg);base64,/);
+      if (imgNode.src && imgNode.src.startsWith('data:image')) {
+        const imageBytes = base64ToUint8Array(imgNode.src);
+        const match = imgNode.src.match(/^data:image\/(png|jpeg|jpg);base64,/);
         const imageType = match ? (match[1] === 'jpg' ? 'jpeg' : match[1]) : 'png';
         
         if (imageBytes) {
           figureParagraphs.push(new Paragraph({
             children: [new ImageRun({
               data: imageBytes,
-              transformation: { width: 500, height: 300 }, // Will be resized proportionally in word usually, but we provide a default size
+              transformation: { width: 500, height: 300 },
               type: imageType as any,
             })],
-            alignment: AlignmentType.LEFT,
+            alignment: getDocxAlignment(imgNode.alignment) || AlignmentType.LEFT,
             spacing: { before: 120, after: 120 },
           }));
         }
       }
 
-      if (caption) {
+      if (imgNode.caption) {
         figureParagraphs.push(new Paragraph({
-          children: [new TextRun({ text: caption })],
-          alignment: AlignmentType.LEFT,
+          children: [new TextRun({ text: imgNode.caption })],
+          alignment: getDocxAlignment(imgNode.alignment) || AlignmentType.LEFT,
           spacing: { before: 120, after: 120, line: 480 },
-        }));
-      }
-
-      // Reconstruct note with copyright attribution if available
-      let fullNote = note || "";
-      const attrType = element.getAttribute("attributionType") || element.getAttribute("attributiontype");
-      if (attrType) {
-        const attrTitle = element.getAttribute("attributionTitle") || element.getAttribute("attributiontitle");
-        const attrAuthor = element.getAttribute("attributionAuthor") || element.getAttribute("attributionauthor");
-        const attrYear = element.getAttribute("attributionYear") || element.getAttribute("attributionyear");
-        const attrPublisher = element.getAttribute("attributionPublisher") || element.getAttribute("attributionpublisher");
-        const attrJournal = element.getAttribute("attributionJournal") || element.getAttribute("attributionjournal");
-        const attrSiteName = element.getAttribute("attributionSiteName") || element.getAttribute("attributionsitename");
-        const attrChannel = element.getAttribute("attributionChannel") || element.getAttribute("attributionchannel");
-        const attrLicense = element.getAttribute("attributionLicense") || element.getAttribute("attributionlicense");
-
-        const sourceName = attrJournal || attrPublisher || attrSiteName || attrChannel;
-        
-        const parts = [];
-        if (attrTitle) parts.push(`"${attrTitle}"`);
-        if (attrAuthor) parts.push(`por ${attrAuthor}`);
-        if (attrYear) parts.push(attrYear);
-        if (sourceName) parts.push(sourceName);
-        if (attrLicense) parts.push(attrLicense);
-
-        const generatedNote = parts.length > 0 ? `Nota. Adaptado de ${parts.join(', ')}.` : '';
-        fullNote = fullNote ? `${fullNote} ${generatedNote}` : generatedNote;
-      }
-
-      if (fullNote) {
-        figureParagraphs.push(new Paragraph({
-          children: [new TextRun({ text: fullNote })],
-          alignment: AlignmentType.LEFT,
-          spacing: { before: 120, after: 240, line: 480 },
         }));
       }
 
       return figureParagraphs.length > 0 ? figureParagraphs : null;
     }
 
-    return new Paragraph({
-      children: childrenNodes.map((r) =>
-        new TextRun({ text: r.text, bold: r.bold, italics: r.italics }),
-      ),
-      alignment: AlignmentType.JUSTIFIED,
-      spacing: { line: 480 },
-    });
+    return null;
   };
 
-  const htmlDoc = new DOMParser().parseFromString(text, "text/html");
   const paragraphs: Paragraph[] = [];
-  htmlDoc.body.childNodes.forEach((node) => {
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const p = parseHtmlBlock(node as Element);
-      if (Array.isArray(p)) {
-        paragraphs.push(...p);
-      } else if (p) {
-        paragraphs.push(p);
-      }
-    } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: node.textContent.trim() })],
-          alignment: AlignmentType.JUSTIFIED,
-          indent: { firstLine: convertInchesToTwip(0.5) },
-          spacing: { line: 480 },
-        }),
-      );
+  ast.children.forEach((node) => {
+    const p = mapBlockNode(node);
+    if (Array.isArray(p)) {
+      paragraphs.push(...p);
+    } else if (p) {
+      paragraphs.push(p);
     }
   });
 
