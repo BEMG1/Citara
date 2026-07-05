@@ -42,8 +42,8 @@ export const referenceListRule: IRule = {
         id: 'apa7-references-exist',
         name: 'Referencias bibliográficas',
         description: 'Sección de referencias.',
-        status: 'compliant', // No penalize if document has no citations and no references at all
-        message: 'No hay citas en el texto, no se exige la sección.',
+        status: 'non-compliant',
+        message: 'No se encontraron citas ni sección de Referencias en el documento.',
         weight: 30
       };
     }

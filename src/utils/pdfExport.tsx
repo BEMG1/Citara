@@ -183,7 +183,9 @@ const renderInlineNodes = (nodes: InlineNode[], references: IReference[], format
         const idx = refIndexMap.get(ref.id);
         const citationText = formatter.formatInTextCitation(ref, idx, lang);
         if (citationText) {
-          return <Text key={`cit-${i}`} style={{ fontFamily: 'Times-Roman', color: '#000000' }}>{citationText}</Text>;
+          // Keep this as a string if we want it to flow cleanly, but it has no formatting,
+          // so we can just return the string directly.
+          return citationText;
         }
       }
       return null;
@@ -208,6 +210,13 @@ const renderInlineNodes = (nodes: InlineNode[], references: IReference[], format
       let textStyle: any = { fontFamily: family, color: textNode.format?.highlight ? '#000000' : '#000000' };
       if (textNode.format?.underline) {
         textStyle.textDecoration = 'underline';
+      }
+
+      // If it's just plain text (no bold, italic, underline, highlight),
+      // we return a raw string. This is CRUCIAL because @react-pdf/renderer
+      // ignores textIndent if the first child is a nested <Text> element.
+      if (family === 'Times-Roman' && !textNode.format?.underline && !textNode.format?.highlight) {
+        return textNode.text;
       }
 
       return (
@@ -402,7 +411,11 @@ const buildPdfDocument = (
     if (node.type === 'paragraph') {
       const pNode = node as ParagraphNode;
       if (pNode.children.length === 0) return;
-      bodyBlocks.push(<Text key={`p-${idx}`} style={{ ...styles.paragraph, textAlign: getAlign(pNode.format?.alignment) || 'justify' }}>{renderInlineNodes(pNode.children, references, formatter, refIndexMap, lang)}</Text>);
+      bodyBlocks.push(
+        <Text key={`p-${idx}`} style={{ ...styles.paragraph, textAlign: getAlign(pNode.format?.alignment) || 'justify' }}>
+          {"\u200B"}{renderInlineNodes(pNode.children, references, formatter, refIndexMap, lang)}
+        </Text>
+      );
     }
   });
 
@@ -411,7 +424,7 @@ const buildPdfDocument = (
     const runs = buildReferenceRuns(ref, formatter, i + 1, lang);
     return (
       <Text key={ref.id} style={isIEEE ? styles.referenceItemIEEE : styles.referenceItem}>
-        {renderInlineNodes(runs, references, formatter, refIndexMap, lang)}
+        {"\u200B"}{renderInlineNodes(runs, references, formatter, refIndexMap, lang)}
       </Text>
     );
   });

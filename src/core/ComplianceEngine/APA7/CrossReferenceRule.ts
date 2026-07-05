@@ -59,8 +59,8 @@ export const crossReferenceRule: IRule = {
       // Encode key + dynamic data separated by | so the modal can translate + append
       message = `crossRef.unusedRefs|${unusedReferences.join(', ')}`;
     } else if (citedIds.size === 0 && refIds.size === 0) {
-      // No cites and no references — ReferenceRules will flag separately; mark as compliant here
-      status = 'compliant';
+      // No cites and no references — ReferenceRules will flag separately; mark as not-applicable here
+      status = 'not-applicable';
       message = 'crossRef.empty';
     }
 

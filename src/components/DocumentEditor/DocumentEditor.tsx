@@ -161,7 +161,7 @@ const DocumentEditor: React.FC = () => {
     haveText
   } = useDocument();
   const { references, setReferences } = useReferences();
-  const { coverPage, setCoverPage } = useCoverPage();
+  const { coverPage, setCoverPage, resetCoverPage } = useCoverPage();
   const { t, language } = useLanguage();
   const { citationFormat } = useCitationFormat();
   const { figures, addFigure, setFigures, setEditorInstance } = useFigures();
@@ -398,14 +398,20 @@ const DocumentEditor: React.FC = () => {
 
       if (coverPage) {
         setCoverPage(coverPage);
+      } else {
+        resetCoverPage();
       }
       
       if (extractedRefs.length > 0) {
         setReferences(extractedRefs);
+      } else {
+        setReferences([]);
       }
 
       if (extractedFigures.length > 0) {
         setFigures(extractedFigures);
+      } else {
+        setFigures([]);
       }
 
       if (editor) {
@@ -485,6 +491,9 @@ const DocumentEditor: React.FC = () => {
       }
       setText('');
       onTitleChange?.("Document_Citara");
+      resetCoverPage();
+      setReferences([]);
+      setFigures([]);
     }
   };
 
