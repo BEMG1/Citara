@@ -108,6 +108,8 @@ function RightPanel() {
   );
 }
 
+import { Toaster } from "react-hot-toast";
+
 // ─── App content ───────────────────────────────────────────────────────────────
 
 function AppContent() {
@@ -116,6 +118,16 @@ function AppContent() {
       className="min-h-screen flex flex-col"
       style={{ background: "var(--bg)", color: "var(--text)" }}
     >
+      <Toaster 
+        position="bottom-center"
+        toastOptions={{
+          style: {
+            background: 'var(--surface-2)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)'
+          }
+        }} 
+      />
       <ExportWarningModal />
       <Header />
       <SupportWidget />

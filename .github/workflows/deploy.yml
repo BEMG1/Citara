@@ -43,6 +43,10 @@ jobs:
 
       - name: 🏗️ Compilar el proyecto
         run: pnpm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_FREE_TIER_GENERATE_COOLDOWN_MINUTES: ${{ vars.VITE_FREE_TIER_GENERATE_COOLDOWN_MINUTES }}
 
       - name: 🚀 Configurar Pages
         uses: actions/configure-pages@v4
