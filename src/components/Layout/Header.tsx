@@ -121,8 +121,8 @@ const Header: React.FC = () => {
             >
               ✕
             </button>
-            {modalType === 'login' && <Login />}
-            {modalType === 'register' && <Register />}
+            {modalType === 'login' && <Login onClose={() => setModalType(null)} />}
+            {modalType === 'register' && <Register onClose={() => setModalType(null)} />}
             {modalType === 'profile' && <UserProfile onClose={() => setModalType(null)} />}
           </div>
         </div>

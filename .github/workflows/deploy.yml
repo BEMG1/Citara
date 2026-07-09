@@ -42,11 +42,7 @@ jobs:
         run: pnpm install
 
       - name: 🏗️ Compilar el proyecto
-        run: |
-          echo "Cooldown min: ${{ vars.VITE_FREE_TIER_GENERATE_COOLDOWN_MINUTES }}"
-          echo "URL length: ${#VITE_SUPABASE_URL}"
-          echo "Key length: ${#VITE_SUPABASE_PUBLISHABLE_KEY}"
-          pnpm run build
+        run: pnpm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
