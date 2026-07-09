@@ -1,13 +1,17 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import toast from 'react-hot-toast'
 
-export const Register: React.FC = () => {
+interface RegisterProps {
+  onClose?: () => void;
+}
+
+export const Register: React.FC<RegisterProps> = ({ onClose }) => {
   const { signUp } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,18 +24,10 @@ export const Register: React.FC = () => {
     if (signUpError) {
       setError(signUpError.message || 'Error al registrar el usuario.')
     } else {
-      setSuccess(true)
+      toast.success('¡Registro Exitoso!')
+      if (onClose) onClose()
     }
     setLoading(false)
-  }
-
-  if (success) {
-    return (
-      <div className="w-full text-center p-4">
-        <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--accent)' }}>¡Registro Exitoso!</h2>
-        <p style={{ color: 'var(--text-2)' }}>Tu cuenta ha sido creada. Puedes iniciar sesión ahora.</p>
-      </div>
-    )
   }
 
   return (
