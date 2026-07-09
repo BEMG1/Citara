@@ -71,3 +71,16 @@ export default defineConfig([
   },
 ])
 ```
+
+## Environment Variables
+
+For the application to run correctly, you must set the following environment variables in your `.env` file:
+
+```env
+VITE_EMAILJS_SERVICE_ID=service_09ik99r
+VITE_EMAILJS_TEMPLATE_ID=template_0r4ebcp
+VITE_EMAILJS_PUBLIC_KEY=dOqau6WW3GmqrmZ3T
+
+VITE_SUPABASE_URL=YOUR_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+```
