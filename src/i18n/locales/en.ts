@@ -22,6 +22,10 @@ export const en: TranslationDictionary = {
   formatAPA6Desc: 'Previous version, still used in some institutions.',
   formatIEEE: 'IEEE Format',
   formatIEEEDesc: 'Numeric, used in engineering and hard sciences.',
+  builtInFormats: 'Built-in Formats',
+  customFormats: 'Custom Formats',
+  createCustomFormat: 'Create Custom Format',
+  loginRequiredFeature: 'You must login or create an account to use this feature',
 
   addReference: 'Add IReference',
   noReferences: 'No references yet.',
