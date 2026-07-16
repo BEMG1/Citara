@@ -12,6 +12,7 @@ export { useLanguage } from "./LanguageContext";
 export { useCoverPage } from "./CoverPageContext";
 export { useExportPDF } from "./ExportPDFContext";
 export { useFigures } from "./FigureContext";
+export { useCustomFormats } from "./CustomFormatsContext";
 
 // Cargamos los proveedores a demanda (Lazy Loading)
 const ThemeProvider = React.lazy(() => import("./ThemeContext"));
@@ -24,6 +25,7 @@ import { LanguageProvider } from "./LanguageContext";
 const CoverPageProvider = React.lazy(() => import("./CoverPageContext"));
 const ExportPDFProvider = React.lazy(() => import("./ExportPDFContext"));
 const FigureProvider = React.lazy(() => import("./FigureContext"));
+const CustomFormatsProvider = React.lazy(() => import("./CustomFormatsContext"));
 
 // Lista plana de proveedores (El orden importa: de más global a más específico)
 const providers = [
@@ -37,6 +39,7 @@ const providers = [
   FigureProvider,
   ExportWordProvider,
   ExportPDFProvider,
+  CustomFormatsProvider,
 ];
 
 const AppProviders: React.FC<{ children: ReactNode }> = ({ children }) => {

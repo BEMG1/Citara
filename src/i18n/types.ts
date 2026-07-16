@@ -25,6 +25,10 @@ export interface TranslationDictionary {
   formatAPA6Desc: string;
   formatIEEE: string;
   formatIEEEDesc: string;
+  builtInFormats: string;
+  customFormats: string;
+  createCustomFormat: string;
+  loginRequiredFeature: string;
 
   // References Manager
   addReference: string;
