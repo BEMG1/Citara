@@ -11,9 +11,10 @@ interface FigureModalProps {
   onClose: () => void;
   onSave: (figure: Omit<IFigure, 'id' | 'number'>) => void;
   initialData?: IFigure | null;
+  figureType?: 'figure' | 'table' | 'cuadro';
 }
 
-export const FigureModal: React.FC<FigureModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
+export const FigureModal: React.FC<FigureModalProps> = ({ isOpen, onClose, onSave, initialData, figureType = 'figure' }) => {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,6 +107,7 @@ export const FigureModal: React.FC<FigureModalProps> = ({ isOpen, onClose, onSav
     const finalAttribution = hasAttribution ? { ...attribution } : undefined;
 
     onSave({
+      figureType,
       imageUrl,
       title,
       caption,
@@ -123,8 +125,8 @@ export const FigureModal: React.FC<FigureModalProps> = ({ isOpen, onClose, onSav
       >
         <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}>
           <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}>
-            <ImageIcon className="w-5 h-5 text-blue-500" style={{ color: 'var(--accent)' }} />
-            {initialData ? t('figure') : t('insertFigure')}
+            <ImageIcon className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+            {initialData ? (figureType === 'table' ? 'Editar Tabla' : figureType === 'cuadro' ? 'Editar Cuadro' : t('figure')) : (figureType === 'table' ? 'Insertar Tabla' : figureType === 'cuadro' ? 'Insertar Cuadro' : t('insertFigure'))}
           </h2>
           <button onClick={onClose} className="p-1 rounded-md transition-colors" style={{ color: 'var(--text-2)' }}>
             <X className="w-5 h-5 hover:opacity-75" />

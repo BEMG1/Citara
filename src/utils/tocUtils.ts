@@ -10,6 +10,13 @@ export interface TocEntry {
   page?: number;
 }
 
+export interface FigureEntry {
+  type: 'figure' | 'table' | 'cuadro';
+  number: string;
+  title: string;
+  page?: number;
+}
+
 /**
  * Parses the document HTML and returns all H1/H2/H3 elements as TocEntry[].
  */
@@ -27,6 +34,25 @@ export const extractHeadings = (html: string): TocEntry[] => {
 
     const level = tag === 'H1' ? 1 : tag === 'H2' ? 2 : 3;
     entries.push({ level: level as 1 | 2 | 3, text });
+  });
+
+  return entries;
+};
+
+export const extractFigures = (html: string): FigureEntry[] => {
+  if (!html?.trim()) return [];
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  const entries: FigureEntry[] = [];
+  doc.body.querySelectorAll('figure').forEach((el) => {
+    const type = (el.getAttribute('figuretype') || 'figure') as 'figure' | 'table' | 'cuadro';
+    const number = el.getAttribute('number') || '';
+    const title = el.getAttribute('title') || '';
+    if (number || title) {
+      entries.push({ type, number, title });
+    }
   });
 
   return entries;
@@ -75,6 +101,46 @@ export const estimateHeadingPages = (
     // Count every block element as contributing to "space"
     // Headings and paragraphs count as 1; figures count as ~5
     if (tag === 'FIGURE') {
+      blockCount += 5;
+    } else if (text) {
+      blockCount += 1;
+    }
+  });
+
+  return entries;
+};
+
+export const estimateFigurePages = (
+  html: string,
+  hasCoverPage: boolean,
+  hasTocPage: boolean,
+  blocksPerPage = 14,
+): FigureEntry[] => {
+  if (!html?.trim()) return [];
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const bodyNodes = Array.from(doc.body.children);
+
+  let pageOffset = 1;
+  if (hasCoverPage) pageOffset += 1;
+  if (hasTocPage) pageOffset += 1; // Basic heuristic: if TOC is generated, add 1. If multiple TOCs, it might be off.
+
+  const entries: FigureEntry[] = [];
+  let blockCount = 0;
+
+  bodyNodes.forEach((el) => {
+    const tag = el.tagName.toUpperCase();
+    const text = el.textContent?.trim() || '';
+
+    if (tag === 'FIGURE') {
+      const estimatedPage = pageOffset + Math.floor(blockCount / blocksPerPage);
+      const type = (el.getAttribute('figuretype') || 'figure') as 'figure' | 'table' | 'cuadro';
+      const number = el.getAttribute('number') || '';
+      const title = el.getAttribute('title') || '';
+      if (number || title) {
+        entries.push({ type, number, title, page: estimatedPage });
+      }
       blockCount += 5;
     } else if (text) {
       blockCount += 1;

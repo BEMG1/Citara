@@ -63,7 +63,7 @@ const applyTitleCase = (text: string) => {
     if (word.length === 0) return word;
     const lower = word.toLowerCase();
     const isFirstOrLast = index === 0 || index === arr.length - 1;
-    
+
     if (isFirstOrLast || !minorWords.has(lower) || lower.length >= 4) {
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     }
@@ -79,17 +79,17 @@ const AutoTitleCaseHeading = Extension.create({
         const { editor } = this;
         const { state } = editor;
         const { $from } = state.selection;
-        
+
         const blockNode = $from.parent;
         if (blockNode.type.name === 'heading') {
           const start = $from.start($from.depth);
           const end = $from.end($from.depth);
           const text = state.doc.textBetween(start, end, ' ');
-          
+
           if (text.trim()) {
             const titleCased = applyTitleCase(text);
             if (text !== titleCased) {
-               editor.chain().deleteRange({ from: start, to: end }).insertContentAt(start, titleCased).run();
+              editor.chain().deleteRange({ from: start, to: end }).insertContentAt(start, titleCased).run();
             }
           }
           // Crear un párrafo normal con sangría después del encabezado (RF-002)
@@ -130,17 +130,17 @@ const AutoFormatList = Extension.create({
         const { editor } = this;
         const { state } = editor;
         const { $from } = state.selection;
-        
+
         const listItem = $from.node($from.depth - 1);
         if (listItem && listItem.type.name === 'listItem') {
           const start = $from.start($from.depth);
           const end = $from.end($from.depth);
           const text = state.doc.textBetween(start, end, ' ');
-          
+
           if (text.trim()) {
             const formatted = applyListAutoFormat(text);
             if (text !== formatted) {
-               editor.chain().deleteRange({ from: start, to: end }).insertContentAt(start, formatted).run();
+              editor.chain().deleteRange({ from: start, to: end }).insertContentAt(start, formatted).run();
             }
           }
         }
@@ -168,6 +168,7 @@ const DocumentEditor: React.FC = () => {
   const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null);
   const [isNormalized, setIsNormalized] = useState(false);
   const [isFigureModalOpen, setIsFigureModalOpen] = useState(false);
+  const [figureModalType, setFigureModalType] = useState<'figure' | 'table' | 'cuadro'>('figure');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -211,7 +212,7 @@ const DocumentEditor: React.FC = () => {
         let number = 1;
         let changed = false;
         const { tr } = editor.state;
-        
+
         editor.state.doc.descendants((node, pos) => {
           if (node.type.name === 'figure') {
             if (node.attrs.number !== number) {
@@ -375,7 +376,7 @@ const DocumentEditor: React.FC = () => {
     }, 300); // Debounce 300ms to avoid locking the UI
 
     return () => clearTimeout(timeoutId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, citationFormat, isNormalized, editor, setComplianceScore, references, coverPage.enabled, figures]);
 
   // --- File handling ---
@@ -401,7 +402,7 @@ const DocumentEditor: React.FC = () => {
       } else {
         resetCoverPage();
       }
-      
+
       if (extractedRefs.length > 0) {
         setReferences(extractedRefs);
       } else {
@@ -423,10 +424,10 @@ const DocumentEditor: React.FC = () => {
 
       // Run Compliance Engine
       const report = ComplianceEngine.analyzeDocument(
-        { 
-          html: bodyHtml, 
-          text: rawTextResult.value, 
-          arrayBuffer, 
+        {
+          html: bodyHtml,
+          text: rawTextResult.value,
+          arrayBuffer,
           isNormalized: false,
           hasExtractedCoverPage: coverPage !== null,
           hasExtractedReferences: extractedRefs.length > 0,
@@ -453,9 +454,9 @@ const DocumentEditor: React.FC = () => {
       const html = editor.getHTML();
       const rawText = editor.getText();
       const report = ComplianceEngine.analyzeDocument(
-        { 
-          html, 
-          text: rawText, 
+        {
+          html,
+          text: rawText,
           isNormalized: true,
           hasExtractedCoverPage: coverPage.enabled,
           hasExtractedReferences: references.length > 0,
@@ -503,15 +504,15 @@ const DocumentEditor: React.FC = () => {
   const handleHeadingToggle = (level: Level) => {
     if (!editor) return;
     const isHeading = editor.isActive('heading', { level });
-    
+
     if (!isHeading) {
       const { state } = editor;
       const { $from } = state.selection;
-      
+
       const start = $from.start($from.depth);
       const end = $from.end($from.depth);
       const text = state.doc.textBetween(start, end, ' ');
-      
+
       if (text.trim()) {
         const titleCased = applyTitleCase(text);
 
@@ -520,7 +521,7 @@ const DocumentEditor: React.FC = () => {
           .deleteRange({ from: start, to: end })
           .insertContentAt(start, titleCased)
           .toggleHeading({ level });
-        
+
         if (level === 1) chain.setTextAlign('center');
         chain.run();
       } else {
@@ -702,239 +703,309 @@ const DocumentEditor: React.FC = () => {
           </button>
         )}
       </div>
-        
+
 
       {/* Format toolbar */}
-        <div className="sticky top-16 z-40 bg-[var(--surface)] shadow-md border-b border-[var(--border)] p-1.5 flex flex-wrap items-center gap-1 mb-2 rounded-t-md">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                className={`${btnBase} ${editor.isActive('bold') ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive('bold')}
-                title="Negrita (Ctrl+B)"
-              >
-                <Bold size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Negrita (Ctrl+B)</p></TooltipContent>
-          </Tooltip>
+      <div className="sticky top-16 z-40 bg-[var(--surface)] shadow-md border-b border-[var(--border)] p-1.5 flex flex-wrap items-center gap-1 mb-2 rounded-t-md">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className={`${btnBase} ${editor.isActive('bold') ? btnActive : btnIdle}`}
+              aria-pressed={editor.isActive('bold')}
+              title="Negrita (Ctrl+B)"
+            >
+              <Bold size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent><p>Negrita (Ctrl+B)</p></TooltipContent>
+        </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={`${btnBase} ${editor.isActive('italic') ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive('italic')}
-                title="Cursiva (Ctrl+I)"
-              >
-                <Italic size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Cursiva (Ctrl+I)</p></TooltipContent>
-          </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className={`${btnBase} ${editor.isActive('italic') ? btnActive : btnIdle}`}
+              aria-pressed={editor.isActive('italic')}
+              title="Cursiva (Ctrl+I)"
+            >
+              <Italic size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent><p>Cursiva (Ctrl+I)</p></TooltipContent>
+        </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => editor.chain().focus().toggleUnderline().run()}
-                className={`${btnBase} ${editor.isActive('underline') ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive('underline')}
-                title="Subrayado (Ctrl+U)"
-              >
-                <UnderlineIcon size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Subrayado (Ctrl+U)</p></TooltipContent>
-          </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              className={`${btnBase} ${editor.isActive('underline') ? btnActive : btnIdle}`}
+              aria-pressed={editor.isActive('underline')}
+              title="Subrayado (Ctrl+U)"
+            >
+              <UnderlineIcon size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent><p>Subrayado (Ctrl+U)</p></TooltipContent>
+        </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => editor.chain().focus().unsetBold().unsetItalic().unsetUnderline().run()}
-                className={`${btnBase} ${btnIdle}`}
-                title="Limpiar Formato"
-              >
-                <Eraser size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Limpiar Formato</p></TooltipContent>
-          </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => editor.chain().focus().unsetBold().unsetItalic().unsetUnderline().run()}
+              className={`${btnBase} ${btnIdle}`}
+              title="Limpiar Formato"
+            >
+              <Eraser size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent><p>Limpiar Formato</p></TooltipContent>
+        </Tooltip>
 
-          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+        <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                className={`${btnBase} ${editor.isActive('bulletList') ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive('bulletList')}
-                title="Lista de Viñetas"
-              >
-                <List size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Lista de Viñetas</p></TooltipContent>
-          </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              className={`${btnBase} ${editor.isActive('bulletList') ? btnActive : btnIdle}`}
+              aria-pressed={editor.isActive('bulletList')}
+              title="Lista de Viñetas"
+            >
+              <List size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent><p>Lista de Viñetas</p></TooltipContent>
+        </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                className={`${btnBase} ${editor.isActive('orderedList') ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive('orderedList')}
-                title="Lista Numerada"
-              >
-                <ListOrdered size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Lista Numerada</p></TooltipContent>
-          </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              className={`${btnBase} ${editor.isActive('orderedList') ? btnActive : btnIdle}`}
+              aria-pressed={editor.isActive('orderedList')}
+              title="Lista Numerada"
+            >
+              <ListOrdered size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent><p>Lista Numerada</p></TooltipContent>
+        </Tooltip>
 
-          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+        <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
 
-          {/* RF-001: Deshabilitar alineación cuando el cursor está en un encabezado */}
-          {(() => { const isHeading = editor.isActive('heading'); return (
-          <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                disabled={isHeading}
-                onClick={() => editor.chain().focus().setTextAlign('left').run()}
-                className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'left' }) ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive({ textAlign: 'left' })}
-                title="Alinear a la Izquierda"
-              >
-                <AlignLeft size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Alinear a la Izquierda</p></TooltipContent>
-          </Tooltip>
+        {/* RF-001: Deshabilitar alineación cuando el cursor está en un encabezado */}
+        {(() => {
+          const isHeading = editor.isActive('heading'); return (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    disabled={isHeading}
+                    onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                    className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'left' }) ? btnActive : btnIdle}`}
+                    aria-pressed={editor.isActive({ textAlign: 'left' })}
+                    title="Alinear a la Izquierda"
+                  >
+                    <AlignLeft size={15} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent><p>Alinear a la Izquierda</p></TooltipContent>
+              </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                disabled={isHeading}
-                onClick={() => editor.chain().focus().setTextAlign('center').run()}
-                className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'center' }) ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive({ textAlign: 'center' })}
-                title="Centrar"
-              >
-                <AlignCenter size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Centrar</p></TooltipContent>
-          </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    disabled={isHeading}
+                    onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                    className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'center' }) ? btnActive : btnIdle}`}
+                    aria-pressed={editor.isActive({ textAlign: 'center' })}
+                    title="Centrar"
+                  >
+                    <AlignCenter size={15} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent><p>Centrar</p></TooltipContent>
+              </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                disabled={isHeading}
-                onClick={() => editor.chain().focus().setTextAlign('right').run()}
-                className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'right' }) ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive({ textAlign: 'right' })}
-                title="Alinear a la Derecha"
-              >
-                <AlignRight size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Alinear a la Derecha</p></TooltipContent>
-          </Tooltip>
-          </>
-          )})()}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    disabled={isHeading}
+                    onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                    className={`${btnBase} ${isHeading ? 'opacity-50 cursor-not-allowed' : ''} ${editor.isActive({ textAlign: 'right' }) ? btnActive : btnIdle}`}
+                    aria-pressed={editor.isActive({ textAlign: 'right' })}
+                    title="Alinear a la Derecha"
+                  >
+                    <AlignRight size={15} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent><p>Alinear a la Derecha</p></TooltipContent>
+              </Tooltip>
+            </>
+          )
+        })()}
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                disabled={!editor.isActive('paragraph') || editor.isActive('listItem')}
-                onClick={() => {
-                  if (!editor.isActive('paragraph') || editor.isActive('listItem')) return;
-                  const isCurrentlyDisabled = editor.isActive('paragraph', { indent: false });
-                  editor.chain().focus().updateAttributes('paragraph', { indent: isCurrentlyDisabled }).run();
-                }}
-                className={`${btnBase} ${(!editor.isActive('paragraph') || editor.isActive('listItem')) ? 'opacity-50 cursor-not-allowed' : ''} ${(editor.isActive('paragraph') && !editor.isActive('listItem') && !editor.isActive('paragraph', { indent: false })) ? btnActive : btnIdle}`}
-                aria-pressed={editor.isActive('paragraph') && !editor.isActive('listItem') && !editor.isActive('paragraph', { indent: false })}
-                title="Sangría automática"
-              >
-                <Indent size={15} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent><p>Sangría automática</p></TooltipContent>
-          </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              disabled={!editor.isActive('paragraph') || editor.isActive('listItem')}
+              onClick={() => {
+                if (!editor.isActive('paragraph') || editor.isActive('listItem')) return;
+                const isCurrentlyDisabled = editor.isActive('paragraph', { indent: false });
+                editor.chain().focus().updateAttributes('paragraph', { indent: isCurrentlyDisabled }).run();
+              }}
+              className={`${btnBase} ${(!editor.isActive('paragraph') || editor.isActive('listItem')) ? 'opacity-50 cursor-not-allowed' : ''} ${(editor.isActive('paragraph') && !editor.isActive('listItem') && !editor.isActive('paragraph', { indent: false })) ? btnActive : btnIdle}`}
+              aria-pressed={editor.isActive('paragraph') && !editor.isActive('listItem') && !editor.isActive('paragraph', { indent: false })}
+              title="Sangría automática"
+            >
+              <Indent size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent><p>Sangría automática</p></TooltipContent>
+        </Tooltip>
 
-          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+        <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
 
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => handleHeadingToggle(1)}
+              className={`${btnBase} ${editor.isActive('heading', { level: 1 }) ? btnActive : btnIdle}`}
+            >
+              H1
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t('heading1')}</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => handleHeadingToggle(2)}
+              className={`${btnBase} ${editor.isActive('heading', { level: 2 }) ? btnActive : btnIdle}`}
+            >
+              H2
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t('heading2')}</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => handleHeadingToggle(3)}
+              className={`${btnBase} ${editor.isActive('heading', { level: 3 }) ? btnActive : btnIdle}`}
+            >
+              H3
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t('heading3')}</p>
+          </TooltipContent>
+        </Tooltip>
+        <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => editor.chain().focus().setParagraph().setTextAlign('justify').run()}
+              className={`${btnBase} ${editor.isActive('paragraph') ? btnActive : btnIdle}`}
+            >
+              ¶
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t('paragraph')}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => { setFigureModalType('figure'); setIsFigureModalOpen(true); }}
+              className={`${btnBase} ${btnIdle}`}
+            >
+              <ImageIcon size={14} className="inline mr-1" />
+              {t('insertFigure')}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{t('insertFigure')}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => { setFigureModalType('table'); setIsFigureModalOpen(true); }}
+              className={`${btnBase} ${btnIdle}`}
+            >
+              <ImageIcon size={14} className="inline mr-1" />
+              Insertar Tabla
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Insertar Tabla</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {citationFormat === 'upel' && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => handleHeadingToggle(1)}
-                className={`${btnBase} ${editor.isActive('heading', { level: 1 }) ? btnActive : btnIdle}`}
-              >
-                H1
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t('heading1')}</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => handleHeadingToggle(2)}
-                className={`${btnBase} ${editor.isActive('heading', { level: 2 }) ? btnActive : btnIdle}`}
-              >
-                H2
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t('heading2')}</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => handleHeadingToggle(3)}
-                className={`${btnBase} ${editor.isActive('heading', { level: 3 }) ? btnActive : btnIdle}`}
-              >
-                H3
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t('heading3')}</p>
-            </TooltipContent>
-          </Tooltip>
-          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => editor.chain().focus().setParagraph().setTextAlign('justify').run()}
-                className={`${btnBase} ${editor.isActive('paragraph') ? btnActive : btnIdle}`}
-              >
-                ¶
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{t('paragraph')}</p>
-            </TooltipContent>
-          </Tooltip>
-          
-          <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setIsFigureModalOpen(true)}
+                onClick={() => { setFigureModalType('cuadro'); setIsFigureModalOpen(true); }}
                 className={`${btnBase} ${btnIdle}`}
               >
                 <ImageIcon size={14} className="inline mr-1" />
-                {t('insertFigure')}
+                Insertar Cuadro
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t('insertFigure')}</p>
+              <p>Insertar Cuadro</p>
             </TooltipContent>
           </Tooltip>
-        </div>
-        
+        )}
+
+        {citationFormat === 'upel' && (
+          <>
+            <span className="select-none px-0.5" style={{ color: 'var(--border)' }}>|</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    if (confirm('¿Deseas cargar la plantilla UPEL? Esto reemplazará el contenido actual.')) {
+                      editor.commands.setContent(`
+                          <h1 style="text-align: center;">ÍNDICE GENERAL</h1>
+                          <p>[El índice se generará automáticamente]</p>
+                          <h1 style="text-align: center;">RESUMEN</h1>
+                          <p>Contenido del resumen...</p>
+                          <h1 style="text-align: center;">INTRODUCCIÓN</h1>
+                          <p>Contenido de la introducción...</p>
+                          <h1 style="text-align: center;">CAPÍTULO I<br>EL PROBLEMA</h1>
+                          <h2>Planteamiento del Problema</h2>
+                          <p>Descripción del contexto y planteamiento...</p>
+                          <h3>Objetivos de la Investigación</h3>
+                          <p>Objetivo general y específicos...</p>
+                        `);
+                    }
+                  }}
+                  className={`${btnBase} btn-nj accent`}
+                >
+                  <BookOpen size={14} className="inline mr-1" />
+                  Cargar Plantilla UPEL
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Inyecta la estructura sugerida para un documento UPEL</p>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        )}
+      </div>
+
 
       {/* Estilos de listas — inyectados con alta especificidad para sobrescribir el reset de Tailwind */}
       <style>{`
@@ -981,7 +1052,7 @@ const DocumentEditor: React.FC = () => {
 
       {/* Editor area */}
       <div
-        className={`relative flex-1 w-full overflow-y-auto min-h-0 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-[color:var(--accent)] focus-within:outline-none transition-shadow duration-150 ${isNormalized ? 'apa-normalized-doc' : ''}`}
+        className={`relative flex-1 w-full overflow-y-auto min-h-0 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-[color:var(--accent)] focus-within:outline-none transition-shadow duration-150 ${isNormalized ? (citationFormat === 'upel' ? 'upel-normalized-doc' : 'apa-normalized-doc') : ''}`}
         style={{ background: 'var(--surface)', border: `1px solid ${isDragging ? 'var(--accent)' : 'var(--border)'}` }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -994,17 +1065,17 @@ const DocumentEditor: React.FC = () => {
             </p>
           </div>
         )}
-        <EditorContent 
-          editor={editor} 
-          className="min-h-full rounded-md outline-none" 
+        <EditorContent
+          editor={editor}
+          className="min-h-full rounded-md outline-none"
           style={{ background: 'var(--paper)', color: 'var(--paper-ink, var(--text))' }}
         />
       </div>
-        {isNormalized && (
-          <div className="mb-2 px-3 py-2 bg-green-900/30 border border-green-800/50 rounded-md text-sm text-green-300 flex items-center gap-2">
-            Documento normalizado automáticamente según reglas de {citationFormat === 'apa7' ? 'APA 7' : citationFormat === 'apa6' ? 'APA 6' : 'IEEE'}.
-          </div>
-        )}
+      {isNormalized && (
+        <div className="mb-2 px-3 py-2 bg-green-900/30 border border-green-800/50 rounded-md text-sm text-green-300 flex items-center gap-2">
+          Documento normalizado automáticamente según reglas de {citationFormat === 'apa7' ? 'APA 7' : citationFormat === 'apa6' ? 'APA 6' : 'IEEE'}.
+        </div>
+      )}
 
       <ComplianceModal
         report={complianceReport}
@@ -1012,10 +1083,11 @@ const DocumentEditor: React.FC = () => {
         onClose={() => setIsComplianceModalOpen(false)}
         onNormalize={handleNormalize}
       />
-      
+
       <FigureModal
         isOpen={isFigureModalOpen}
         onClose={() => setIsFigureModalOpen(false)}
+        figureType={figureModalType}
         onSave={(figureData) => {
           const newFigure: IFigure = {
             ...figureData,
@@ -1023,7 +1095,7 @@ const DocumentEditor: React.FC = () => {
             number: figures.length + 1,
           };
           addFigure(newFigure);
-          
+
           // Insert figure node
           if (editor) {
             editor.chain().focus().insertContent({

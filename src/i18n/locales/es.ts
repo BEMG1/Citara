@@ -22,6 +22,8 @@ export const es: TranslationDictionary = {
   formatAPA6Desc: 'Versión anterior, aún usada en algunas instituciones.',
   formatIEEE: 'Formato IEEE',
   formatIEEEDesc: 'Numérico, usado en ingenierías y ciencias exactas.',
+  formatUPEL: 'Normas UPEL',
+  formatUPELDesc: 'Normas de la Universidad Pedagógica Experimental Libertador para Trabajos de Grado.',
   builtInFormats: 'Formatos Integrados',
   customFormats: 'Formatos Personalizados',
   createCustomFormat: 'Crear Formato Personalizado',

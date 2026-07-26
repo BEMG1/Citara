@@ -25,6 +25,8 @@ export interface TranslationDictionary {
   formatAPA6Desc: string;
   formatIEEE: string;
   formatIEEEDesc: string;
+  formatUPEL: string;
+  formatUPELDesc: string;
   builtInFormats: string;
   customFormats: string;
   createCustomFormat: string;

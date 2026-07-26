@@ -8,6 +8,7 @@ import type { CitationFormat, ICitationFormatConfig, ICitationFormatter } from '
 import { apa7Formatter } from './apa7.tsx';
 import { apa6Formatter } from './apa6.tsx';
 import { ieeeFormatter } from './ieee.tsx';
+import { upelFormatter } from './upel.tsx';
 
 /**
  * Map of all available formatters keyed by their CitationFormat id.
@@ -17,6 +18,7 @@ export const CITATION_FORMATTERS: Record<CitationFormat, ICitationFormatter> = {
   apa7: apa7Formatter,
   apa6: apa6Formatter,
   ieee: ieeeFormatter,
+  upel: upelFormatter,
 };
 
 /**
@@ -37,6 +39,11 @@ export const FORMAT_CONFIGS: Record<CitationFormat, ICitationFormatConfig> = {
     label: 'IEEE',
     subtitle: 'IEEE · Numérico',
     description: 'Institute of Electrical and Electronics Engineers. Citas numéricas, orden de aparición.',
+  },
+  upel: {
+    label: 'Normas UPEL',
+    subtitle: 'UPEL · Tesis',
+    description: 'Normas de la Universidad Pedagógica Experimental Libertador para Trabajos de Grado.',
   },
 };
 

@@ -15,7 +15,7 @@ interface FieldDef {
   placeholderKey: keyof typeof import('@/i18n/locales/es').es;
   hintKey?: keyof typeof import('@/i18n/locales/es').es;
   required?: boolean;
-  formats: ('apa7' | 'apa6' | 'ieee')[];
+  formats: ('apa7' | 'apa6' | 'ieee' | 'upel')[];
 }
 
 const FIELD_DEFS: FieldDef[] = [
@@ -24,7 +24,7 @@ const FIELD_DEFS: FieldDef[] = [
     labelKey: 'coverDocTitle',
     placeholderKey: 'coverDocTitlePlaceholder',
     required: true,
-    formats: ['apa7', 'apa6', 'ieee'],
+    formats: ['apa7', 'apa6', 'ieee', 'upel'],
   },
   {
     key: 'subtitle',
@@ -38,20 +38,20 @@ const FIELD_DEFS: FieldDef[] = [
     placeholderKey: 'coverAuthorsPlaceholder',
     required: true,
     hintKey: 'coverAuthorsHint',
-    formats: ['apa7', 'apa6', 'ieee'],
+    formats: ['apa7', 'apa6', 'ieee', 'upel'],
   },
   {
     key: 'institution',
     labelKey: 'coverInstitution',
     placeholderKey: 'coverInstitutionPlaceholder',
     required: true,
-    formats: ['apa7', 'apa6', 'ieee'],
+    formats: ['apa7', 'apa6', 'ieee', 'upel'],
   },
   {
     key: 'faculty',
     labelKey: 'coverFaculty',
     placeholderKey: 'coverFacultyPlaceholder',
-    formats: ['apa7', 'apa6', 'ieee'],
+    formats: ['apa7', 'apa6', 'ieee', 'upel'],
   },
   {
     key: 'course',
@@ -63,20 +63,20 @@ const FIELD_DEFS: FieldDef[] = [
     key: 'teacher',
     labelKey: 'coverTeacher',
     placeholderKey: 'coverTeacherPlaceholder',
-    formats: ['apa7', 'apa6'],
+    formats: ['apa7', 'apa6', 'upel'],
   },
   {
     key: 'city',
     labelKey: 'coverCity',
     placeholderKey: 'coverCityPlaceholder',
-    formats: ['apa7', 'apa6', 'ieee'],
+    formats: ['apa7', 'apa6', 'ieee', 'upel'],
   },
   {
     key: 'date',
     labelKey: 'coverDate',
     placeholderKey: 'coverDate', // Date does not have a real placeholder
     required: true,
-    formats: ['apa7', 'apa6', 'ieee'],
+    formats: ['apa7', 'apa6', 'ieee', 'upel'],
   },
 ];
 

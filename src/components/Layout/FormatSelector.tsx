@@ -8,7 +8,7 @@ import { CustomFormatModal } from '../Settings/CustomFormatModal';
 import type { CustomCitationFormat } from '@/services/supabase/customFormats';
 import { useAuth } from '@/context/AuthContext';
 
-const FORMAT_ORDER: CitationFormat[] = ['apa7', 'apa6', 'ieee'];
+const FORMAT_ORDER: CitationFormat[] = ['apa7', 'apa6', 'ieee', 'upel'];
 
 export const FormatSelector: React.FC = () => {
   const { citationFormat, setCitationFormat } = useCitationFormat();
@@ -39,6 +39,7 @@ export const FormatSelector: React.FC = () => {
     if (fmt === 'apa7') return { label: 'formatAPA7', desc: 'formatAPA7Desc' };
     if (fmt === 'apa6') return { label: 'formatAPA6', desc: 'formatAPA6Desc' };
     if (fmt === 'ieee') return { label: 'formatIEEE', desc: 'formatIEEEDesc' };
+    if (fmt === 'upel') return { label: 'formatUPEL', desc: 'formatUPELDesc' };
     return { label: 'formatAPA7', desc: 'formatAPA7Desc' };
   };
 

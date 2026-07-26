@@ -10,6 +10,7 @@ export const FigureNode = Node.create({
   addAttributes() {
     return {
       id: { default: null },
+      figureType: { default: 'figure' },
       number: { default: null },
       imageUrl: { default: null },
       title: { default: null },
