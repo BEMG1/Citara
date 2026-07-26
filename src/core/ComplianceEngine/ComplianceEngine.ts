@@ -3,11 +3,13 @@ import type { ComplianceReport, IDocumentData, INormEngine } from './types';
 import { apa7Engine } from './APA7/index.ts';
 import { apa6Engine } from './APA6/index.ts';
 import { ieeeEngine } from './IEEE/index.ts';
+import { upelEngine } from './UPEL/index.ts';
 
 const engines: Record<CitationFormat, INormEngine> = {
   apa7: apa7Engine,
   apa6: apa6Engine,
   ieee: ieeeEngine,
+  upel: upelEngine,
 };
 
 export class ComplianceEngine {

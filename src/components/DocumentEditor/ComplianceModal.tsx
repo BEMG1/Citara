@@ -16,7 +16,7 @@ export const ComplianceModal: React.FC<ComplianceModalProps> = ({ report, isOpen
   if (!isOpen || !report) return null;
 
   // Formatting norm name
-  const normName = report.format === 'apa7' ? 'APA 7' : report.format === 'apa6' ? 'APA 6' : 'IEEE';
+  const normName = report.format === 'apa7' ? 'APA 7' : report.format === 'apa6' ? 'APA 6' : report.format === 'upel' ? 'UPEL' : 'IEEE';
   const normText = (t('complianceEvalNorm' as any) as string).replace('{norm}', normName);
 
   // SVG Circular progress bar
@@ -99,11 +99,9 @@ export const ComplianceModal: React.FC<ComplianceModalProps> = ({ report, isOpen
                 </div>
               </div>
               <ul className="p-4 space-y-2 list-disc list-inside text-sm marker:text-orange-500/50" style={{ color: 'var(--text-2)' }}>
-                <li>{t('missingNormTitle' as any)}</li>
-                <li>{t('missingNormHeadings' as any)}</li>
-                <li>{t('missingNormRefs' as any)}</li>
-                <li>{t('missingNormCover' as any)}</li>
-                <li>{t('missingNormCitations' as any)}</li>
+                {report.missingElements.map(el => (
+                  <li key={el.id}>{(t(el.name as any) as string) || el.name}</li>
+                ))}
               </ul>
             </div>
           )}

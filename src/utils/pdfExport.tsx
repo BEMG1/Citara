@@ -7,7 +7,7 @@ import type { ICitationFormatter } from './citationFormats/types';
 import type { ICoverPageData } from '../interfaces/ICoverPage';
 import type { PageNumberPosition } from '../context/DocumentContext';
 import { es, en } from '../i18n';
-import { estimateHeadingPages } from './tocUtils';
+import { estimateHeadingPages, estimateFigurePages } from './tocUtils';
 import React from 'react';
 
 
@@ -310,10 +310,12 @@ const buildPdfDocument = (
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
   generateTOC: boolean = false,
+  formatId?: string,
 ): React.ReactElement<any> => {
   const isIEEE = formatter.sortMode === 'appearance';
+  const isUpel = formatId === 'upel';
   
-  const defaultPosition = isIEEE ? 'bottom-center' : 'top-right';
+  const defaultPosition = isIEEE ? 'bottom-center' : (isUpel ? 'bottom-center' : 'top-right');
   const position = pageNumberPosition || defaultPosition;
 
   let topBottomStyle: any = { top: 36 }; // 0.5 inch from top
@@ -330,8 +332,36 @@ const buildPdfDocument = (
 
   const dynamicPageNumberStyle = [styles.pageNumberBase, topBottomStyle, leftRightStyle];
 
+  const toRoman = (num: number) => {
+    const lookup = [
+      ['m', 1000], ['cm', 900], ['d', 500], ['cd', 400],
+      ['c', 100], ['xc', 90], ['l', 50], ['xl', 40],
+      ['x', 10], ['ix', 9], ['v', 5], ['iv', 4], ['i', 1]
+    ];
+    let roman = '';
+    for (const [letter, value] of lookup) {
+      while (num >= (value as number)) {
+        roman += letter;
+        num -= value as number;
+      }
+    }
+    return roman;
+  };
+
   // Helper to conditionally render page number
   const renderPageNumber = ({ pageNumber }: { pageNumber: number }) => {
+    if (isUpel) {
+      if (pageNumber === 1 && coverPage?.enabled) return ""; // Cover page has no number
+      // Assuming TOC takes 1 page (rough estimate)
+      // A more robust solution requires custom pagination components, but for now we format as Roman if it's TOC.
+      const isPrelim = pageNumber === 2 && generateTOC;
+      if (isPrelim) return toRoman(pageNumber);
+      
+      const offset = (coverPage?.enabled ? 1 : 0) + (generateTOC ? 1 : 0);
+      const arabicPage = Math.max(1, pageNumber - offset);
+      return String(arabicPage);
+    }
+    
     if (!startNumberingOnCover && pageNumber === 1) return "";
     return String(pageNumber);
   };
@@ -388,7 +418,7 @@ const buildPdfDocument = (
     if (node.type === 'heading') {
       const hNode = node as HeadingNode;
       if (hNode.level === 1) {
-        bodyBlocks.push(<Text key={`h1-${idx}`} style={{ ...styles.h1, textAlign: getAlign(hNode.format?.alignment) || 'center' }}>{renderInlineNodes(hNode.children, references, formatter, refIndexMap, lang)}</Text>);
+        bodyBlocks.push(<Text key={`h1-${idx}`} break={isUpel} style={{ ...styles.h1, textAlign: getAlign(hNode.format?.alignment) || 'center' }}>{renderInlineNodes(hNode.children, references, formatter, refIndexMap, lang)}</Text>);
       } else if (hNode.level === 2) {
         bodyBlocks.push(<Text key={`h2-${idx}`} style={{ ...styles.h2, textAlign: getAlign(hNode.format?.alignment) || 'left' }}>{renderInlineNodes(hNode.children, references, formatter, refIndexMap, lang)}</Text>);
       } else if (hNode.level === 3) {
@@ -459,6 +489,44 @@ const buildPdfDocument = (
           })
         )}
       </Page>
+    );
+
+    const figures = estimateFigurePages(text, hasCover, true);
+
+    const renderIndexPage = (type: string, title: string, noItemsMsg: string) => {
+      const items = figures.filter((f) => f.type === type);
+      if (items.length > 0 || isUpel) {
+        return (
+          <Page size="LETTER" style={styles.page} key={`index-${type}`}>
+            <Text style={dynamicPageNumberStyle as any} render={renderPageNumber} fixed />
+            <Text style={styles.tocTitle}>{title}</Text>
+            {items.length === 0 ? (
+              <Text style={styles.paragraph}>{noItemsMsg}</Text>
+            ) : (
+              items.map((item, i) => (
+                <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', ...styles.tocEntry1 }}>
+                  <Text style={{ flex: 1 }}>{item.number ? item.number + '. ' : ''}{item.title}</Text>
+                  <Text style={{ marginLeft: 8 }}>{tocPageLabel} {item.page}</Text>
+                </View>
+              ))
+            )}
+          </Page>
+        );
+      }
+      return null;
+    };
+
+    const extraIndexPages = [
+      renderIndexPage('table', lang === 'en' ? 'List of Tables' : 'Índice de Tablas', lang === 'en' ? 'No tables found.' : 'No se encontraron tablas.'),
+      renderIndexPage('figure', lang === 'en' ? 'List of Figures' : 'Índice de Figuras', lang === 'en' ? 'No figures found.' : 'No se encontraron figuras.'),
+      isUpel ? renderIndexPage('cuadro', 'Índice de Cuadros', 'No se encontraron cuadros.') : null,
+    ];
+
+    tocPage = (
+      <>
+        {tocPage}
+        {extraIndexPages}
+      </>
     );
   }
 
@@ -534,9 +602,10 @@ export const exportToPdf = async (
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
   generateTOC: boolean = false,
+  formatId?: string,
 ) => {
   try {
-    const docElement = buildPdfDocument(text, references, formatter, lang, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC);
+    const docElement = buildPdfDocument(text, references, formatter, lang, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, formatId);
     const pdfInstance = pdf(docElement);
     const blob = await pdfInstance.toBlob();
 

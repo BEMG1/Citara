@@ -726,6 +726,54 @@ code {
   color: var(--paper-ink) !important;
 }
 
+/* UPEL Normalization Styles */
+.upel-normalized-doc .ProseMirror {
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 12pt !important;
+  /* Margins: Superior/Inferior/Derecho 3cm (~1.18in), Izquierdo 4cm (~1.57in) */
+  padding: 1.18in 1.18in 1.18in 1.57in !important;
+  background-color: var(--paper) !important;
+  color: var(--paper-ink) !important;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  margin: 1rem auto !important;
+  max-width: 8.5in !important;
+  min-height: 11in !important;
+}
+
+.upel-normalized-doc .ProseMirror p {
+  text-indent: 1.27cm !important;
+  line-height: 1.5 !important;
+  text-align: justify !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.upel-normalized-doc .ProseMirror p[data-indent="false"],
+.upel-normalized-doc .ProseMirror p.no-indent {
+  text-indent: 0 !important;
+}
+
+.upel-normalized-doc .ProseMirror h1 {
+  text-transform: uppercase !important;
+  text-align: center !important;
+  font-weight: bold !important;
+  color: var(--paper-ink) !important;
+}
+
+.upel-normalized-doc .ProseMirror h2,
+.upel-normalized-doc .ProseMirror h3 {
+  text-align: left !important;
+  font-weight: bold !important;
+  color: var(--paper-ink) !important;
+}
+
+.upel-normalized-doc .ProseMirror blockquote {
+  margin-left: 1.27cm !important;
+  margin-right: 0 !important;
+  line-height: 1 !important; /* Interlineado sencillo */
+  text-indent: 0 !important;
+}
+
 
 /* ─── PRINT STYLES FOR PDF EXPORT ─────────────────────────────────────────── */
 @media print {

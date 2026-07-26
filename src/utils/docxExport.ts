@@ -30,7 +30,7 @@ import { getYear } from "./referenceUtils";
 import type { ICitationFormatter } from "./citationFormats/types";
 import { apa7Formatter } from "./citationFormats/apa7.tsx";
 import type { ICoverPageData } from "../interfaces/ICoverPage";
-import { extractHeadings } from "./tocUtils";
+import { extractHeadings, extractFigures } from "./tocUtils";
 
 
 import { HtmlParser } from "../core/export/HtmlParser";
@@ -70,8 +70,10 @@ const base64ToUint8Array = (base64Str: string) => {
 const buildCoverPageChildren = (
   cover: ICoverPageData,
   formatterSortMode: ICitationFormatter['sortMode'],
+  formatId?: string
 ): Paragraph[] => {
   const isIEEE = formatterSortMode === 'appearance';
+  const isUpel = formatId === 'upel';
   const bold = (text: string, size = 24) =>
     new TextRun({ text, bold: true, size });
   const normal = (text: string, size = 24) =>
@@ -82,6 +84,29 @@ const buildCoverPageChildren = (
       alignment: AlignmentType.CENTER,
       spacing: { line: 480, before: spacingBefore },
     });
+
+  if (isUpel) {
+    const upelChildren: Paragraph[] = [];
+    if (cover.institution) upelChildren.push(centred([bold(cover.institution.toUpperCase(), 24)]));
+    if (cover.faculty) upelChildren.push(centred([bold(cover.faculty.toUpperCase(), 24)]));
+    upelChildren.push(emptyLine(), emptyLine(), emptyLine(), emptyLine());
+    
+    if (cover.title) upelChildren.push(centred([bold(cover.title.toUpperCase(), 24)]));
+    upelChildren.push(emptyLine(), emptyLine(), emptyLine());
+    
+    if (cover.authors) {
+      const authorLines = cover.authors.split('\n').map((a: string) => a.trim()).filter(Boolean);
+      authorLines.forEach((a: string) => upelChildren.push(centred([normal(a, 24)])));
+    }
+    if (cover.teacher) upelChildren.push(centred([normal(`Tutor: ${cover.teacher}`, 24)]));
+    
+    upelChildren.push(emptyLine(), emptyLine(), emptyLine(), emptyLine(), emptyLine());
+    if (cover.city || cover.date) {
+      upelChildren.push(centred([normal([cover.city, cover.date].filter(Boolean).join(', '), 24)]));
+    }
+    upelChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    return upelChildren;
+  }
 
   if (isIEEE) {
     // ── IEEE Cover Page ──────────────────────────────────────────────────────
@@ -278,6 +303,7 @@ export const exportToDocx = async (
   pageNumberPosition: PageNumberPosition = null,
   startNumberingOnCover: boolean = true,
   generateTOC: boolean = false,
+  formatId?: string,
 ) => {
   // ── Sort references according to formatter's sort mode ─────────────────────
   let sortedRefs: IReference[];
@@ -388,6 +414,7 @@ export const exportToDocx = async (
         heading: headingLvl,
         alignment: getDocxAlignment(hNode.format?.alignment) || defaultAlign,
         spacing: { line: 480 },
+        pageBreakBefore: (hNode.level === 1 && formatId === 'upel') ? true : undefined,
       });
     }
 
@@ -465,7 +492,8 @@ export const exportToDocx = async (
   // Build cover page section if enabled
   // APA 7 §2.3: page number appears top-right on the cover page itself (page 1).
 
-  const defaultPosition = formatter.sortMode === "appearance" ? "bottom-center" : "top-right";
+  const isUpel = formatId === 'upel';
+  const defaultPosition = formatter.sortMode === "appearance" ? "bottom-center" : (isUpel ? "bottom-center" : "top-right");
   const position = pageNumberPosition || defaultPosition;
 
   let align: any = AlignmentType.RIGHT;
@@ -555,15 +583,15 @@ export const exportToDocx = async (
         {
           properties: {
             type: "nextPage" as const,
-            titlePage: !startNumberingOnCover,
+            titlePage: !startNumberingOnCover || isUpel,
             page: {
               margin: { top: margin, right: margin, bottom: margin, left: margin },
-              pageNumbers: { start: 1, formatType: NumberFormat.DECIMAL },
+              pageNumbers: { start: 1, formatType: isUpel ? NumberFormat.LOWER_ROMAN : NumberFormat.DECIMAL },
             },
           },        
           footers: getFooters(),
-          headers: getHeaders(!startNumberingOnCover),
-          children: buildCoverPageChildren(coverPage, formatter.sortMode),
+          headers: getHeaders(!startNumberingOnCover || isUpel),
+          children: buildCoverPageChildren(coverPage, formatter.sortMode, formatId),
         },
       ]
     : [];
@@ -601,8 +629,47 @@ export const exportToDocx = async (
         }),
       );
     }
-
     tocChildren.push(new Paragraph({ children: [new PageBreak()] }));
+
+    const figures = extractFigures(text);
+    const renderIndex = (type: string, title: string, noItemsMsg: string) => {
+      const items = figures.filter((f) => f.type === type);
+      if (items.length > 0 || isUpel) { // In UPEL, we might want to always show the section if required, or only if items exist
+        tocChildren.push(
+          new Paragraph({
+            children: [new TextRun({ text: title, bold: true })],
+            heading: HeadingLevel.HEADING_1,
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 240, after: 240, line: 480 },
+          })
+        );
+        if (items.length === 0) {
+          tocChildren.push(
+            new Paragraph({
+              children: [new TextRun({ text: noItemsMsg, italics: true })],
+              spacing: { line: 480 },
+            })
+          );
+        } else {
+          items.forEach(item => {
+            tocChildren.push(
+              new Paragraph({
+                children: [new TextRun({ text: `${item.number ? item.number + '. ' : ''}${item.title}` })],
+                spacing: { line: 480 },
+              })
+            );
+          });
+        }
+        tocChildren.push(new Paragraph({ children: [new PageBreak()] }));
+      }
+    };
+
+    renderIndex('table', lang === 'en' ? 'List of Tables' : 'Índice de Tablas', lang === 'en' ? 'No tables found.' : 'No se encontraron tablas.');
+    renderIndex('figure', lang === 'en' ? 'List of Figures' : 'Índice de Figuras', lang === 'en' ? 'No figures found.' : 'No se encontraron figuras.');
+    
+    if (isUpel) {
+      renderIndex('cuadro', 'Índice de Cuadros', 'No se encontraron cuadros.');
+    }
 
     tocSection = [
       {
@@ -610,6 +677,7 @@ export const exportToDocx = async (
           type: "nextPage" as const,
           page: {
             margin: { top: margin, right: margin, bottom: margin, left: margin },
+            pageNumbers: isUpel ? { formatType: NumberFormat.LOWER_ROMAN } : undefined,
           },
         },
         footers: getFooters(),
@@ -642,6 +710,7 @@ export const exportToDocx = async (
           paragraph: {
             alignment: AlignmentType.CENTER,
             spacing: { before: 240, after: 240, line: 480 },
+            keepNext: true,
           },
         },
         {
@@ -654,6 +723,7 @@ export const exportToDocx = async (
           paragraph: {
             alignment: AlignmentType.LEFT,
             spacing: { before: 240, after: 240, line: 480 },
+            keepNext: true,
           },
         },
         {
@@ -678,11 +748,13 @@ export const exportToDocx = async (
           titlePage: (!coverPage?.enabled && !startNumberingOnCover) ? true : undefined,
           page: {
             margin: { top: margin, right: margin, bottom: margin, left: margin },
-            pageNumbers: !coverPage?.enabled ? { start: 1, formatType: NumberFormat.DECIMAL } : undefined,
+            pageNumbers: isUpel 
+              ? { start: 1, formatType: NumberFormat.DECIMAL } 
+              : (!coverPage?.enabled ? { start: 1, formatType: NumberFormat.DECIMAL } : undefined),
           },
         },
-        footers: !coverPage?.enabled ? getFooters() : undefined,
-        headers: !coverPage?.enabled ? getHeaders(!startNumberingOnCover) : undefined,
+        footers: (!coverPage?.enabled || isUpel) ? getFooters() : undefined,
+        headers: (!coverPage?.enabled || isUpel) ? getHeaders(!startNumberingOnCover) : undefined,
         children: [...paragraphs],
       },
       {

@@ -14,7 +14,7 @@ export const ExportPDFProvider: React.FC<{ children: ReactNode }> = ({ children 
   const { documentText, documentTitle, pageNumberPosition, startNumberingOnCover, generateTOC } = useDocument();
 
   const { references } = useReferences();
-  const { formatter } = useCitationFormat();
+  const { formatter, citationFormat } = useCitationFormat();
   const { coverPage } = useCoverPage();
   const { language } = useLanguage();
   
@@ -25,12 +25,12 @@ export const ExportPDFProvider: React.FC<{ children: ReactNode }> = ({ children 
     setIsExportingPdf(true);
     try {
       const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
-      await exportToPdf(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC);
+      await exportToPdf(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat);
 
     } finally {
       setIsExportingPdf(false);
     }
-  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC]);
+  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat]);
 
 
   const handleExportPdfClick = useCallback(() => {

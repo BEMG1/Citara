@@ -1,5 +1,6 @@
 export interface IFigure {
   id: string;
+  figureType?: 'figure' | 'table' | 'cuadro';
   number: number;
   imageUrl: string;
   title: string;
