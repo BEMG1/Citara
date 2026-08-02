@@ -387,7 +387,9 @@ export const exportToDocx = async (
       return new Paragraph({
         children: pNode.children.map(mapInlineNode),
         alignment: getDocxAlignment(pNode.format?.alignment) || AlignmentType.JUSTIFIED,
-        indent: { firstLine: convertInchesToTwip(0.5) },
+        indent: pNode.format?.indent !== undefined 
+          ? { firstLine: pNode.format.indent } 
+          : { firstLine: convertInchesToTwip(0.5) },
         spacing: { line: 480 },
       });
     }

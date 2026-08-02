@@ -441,8 +441,9 @@ const buildPdfDocument = (
     if (node.type === 'paragraph') {
       const pNode = node as ParagraphNode;
       if (pNode.children.length === 0) return;
+      const indentStyle = pNode.format?.indent !== undefined ? { textIndent: pNode.format.indent } : {};
       bodyBlocks.push(
-        <Text key={`p-${idx}`} style={{ ...styles.paragraph, textAlign: getAlign(pNode.format?.alignment) || 'justify' }}>
+        <Text key={`p-${idx}`} style={{ ...styles.paragraph, textAlign: getAlign(pNode.format?.alignment) || 'justify', ...indentStyle }}>
           {"\u200B"}{renderInlineNodes(pNode.children, references, formatter, refIndexMap, lang)}
         </Text>
       );
