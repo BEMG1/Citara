@@ -103,10 +103,14 @@ export class HtmlParser {
     }
 
     if (tagName === "P") {
+      const hasNoIndent = element.classList.contains("no-indent") || element.getAttribute("data-indent") === "false";
       return {
         type: 'paragraph',
         children: childrenNodes,
-        format: { alignment }
+        format: { 
+          alignment,
+          ...(hasNoIndent ? { indent: 0 } : {})
+        }
       } as ParagraphNode;
     }
 
@@ -146,10 +150,14 @@ export class HtmlParser {
     
     // Fallback: treat as paragraph if it has content
     if (childrenNodes.length > 0) {
+      const hasNoIndent = element.classList?.contains("no-indent") || element.getAttribute?.("data-indent") === "false";
       return {
         type: 'paragraph',
         children: childrenNodes,
-        format: { alignment }
+        format: { 
+          alignment,
+          ...(hasNoIndent ? { indent: 0 } : {})
+        }
       } as ParagraphNode;
     }
 
