@@ -3,6 +3,7 @@ import { X, Save, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft } from 'lucid
 import { useCustomFormats } from '@/context/CustomFormatsContext';
 import type { CustomCitationFormat, CustomCitationFormatInsert } from '@/services/supabase/customFormats';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useCitationFormat } from '@/context/CitationFormatContext';
 
 interface CustomFormatModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
   formatToEdit
 }) => {
   const { createFormat, updateFormat, customFormats } = useCustomFormats();
+  const { citationFormat, customFormatId, setCitationFormat } = useCitationFormat();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,12 +113,13 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
       f.id !== formatToEdit?.id
     );
     if (isDuplicate) return false;
-    if (formData.font_size < 0) return false;
+    if (formData.font_size < 1) return false;
     return true;
   };
 
   const isSpacingTabValid = () => {
-    const numerics = [formData.line_spacing, formData.paragraph_before, formData.paragraph_after, formData.first_line_indent, formData.left_indent, formData.right_indent];
+    if (formData.line_spacing < 0.01) return false;
+    const numerics = [formData.paragraph_before, formData.paragraph_after, formData.first_line_indent, formData.left_indent, formData.right_indent];
     return !numerics.some(val => val < 0);
   };
 
@@ -126,8 +129,9 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
   };
 
   const isHeadingsTabValid = () => {
-    const numerics = [formData.heading1_size, formData.heading2_size, formData.heading3_size, formData.hanging_indent, formData.reference_spacing];
-    return !numerics.some(val => val < 0);
+    const headingSizes = [formData.heading1_size, formData.heading2_size, formData.heading3_size];
+    const otherNumerics = [formData.hanging_indent, formData.reference_spacing];
+    return !headingSizes.some(val => val < 1) && !otherNumerics.some(val => val < 0);
   };
 
   const isTabValid = (tab: TabKey) => {
@@ -151,30 +155,6 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
     return isGeneralTabValid() && isSpacingTabValid() && isPageTabValid() && isHeadingsTabValid();
   };
 
-  const handleNext = () => {
-    const currentIndex = tabKeys.indexOf(activeTab);
-    if (!isTabValid(activeTab)) {
-      setError(`Please fix validation errors in the ${activeTab} section before proceeding.`);
-      return;
-    }
-    setError(null);
-    if (currentIndex < tabKeys.length - 1) {
-      const nextTab = tabKeys[currentIndex + 1];
-      setActiveTab(nextTab);
-      setVisitedTabs(prev => new Set(prev).add(nextTab));
-    }
-  };
-
-  const handleBack = () => {
-    const currentIndex = tabKeys.indexOf(activeTab);
-    setError(null);
-    if (currentIndex > 0) {
-      const prevTab = tabKeys[currentIndex - 1];
-      setActiveTab(prevTab);
-      setVisitedTabs(prev => new Set(prev).add(prevTab));
-    }
-  };
-
   const handleTabChange = (val: string) => {
     const newTab = val as TabKey;
     // We can allow free navigation if they just click tabs, but maybe check if moving forward
@@ -186,7 +166,7 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!allRequiredSectionsComplete()) {
-      setError("Complete all required sections before saving the custom format.");
+      setError("Hay valores inválidos. Los tamaños de fuente deben ser mínimo 1, el interlineado mínimo 0.01 y los demás márgenes/sangrías mínimo 0.");
       // Find first incomplete tab
       const firstIncomplete = tabKeys.find(k => k !== 'review' && !isTabValid(k));
       if (firstIncomplete) {
@@ -199,11 +179,19 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
     setLoading(true);
     setError(null);
     try {
+      let resultFormat;
       if (formatToEdit) {
-        await updateFormat(formatToEdit.id, formData);
+        resultFormat = await updateFormat(formatToEdit.id, formData);
+        // Si el formato que se está editando es el actualmente seleccionado, actualizar el contexto
+        if (citationFormat === 'custom' && customFormatId === formatToEdit.id.toString()) {
+          setCitationFormat('custom', resultFormat.id.toString(), resultFormat);
+        }
       } else {
-        await createFormat(formData);
+        resultFormat = await createFormat(formData);
+        // Seleccionar automáticamente el formato recién creado
+        setCitationFormat('custom', resultFormat.id.toString(), resultFormat);
       }
+      
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error saving custom format.');
@@ -286,13 +274,13 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
                 >
                   Headings {renderTabIndicator('headings')}
                 </TabsTrigger>
-                <TabsTrigger 
+                {/* <TabsTrigger 
                   value="review"
                   className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-none rounded-t-md border-b-2 border-transparent data-[state=active]:border-[color:var(--accent)] data-[state=active]:text-[color:var(--accent)] data-[state=active]:bg-[color:var(--accent-soft)] data-[state=inactive]:text-[color:var(--text-2)] hover:data-[state=inactive]:text-[color:var(--text)] hover:data-[state=inactive]:bg-[color:var(--surface-3)] transition-all duration-150 data-[state=active]:shadow-none"
                   style={{ fontFamily: "var(--ui-font)", marginBottom: "-1px" }}
                 >
                   Review
-                </TabsTrigger>
+                </TabsTrigger> */}
               </TabsList>
             </div>
 
@@ -329,7 +317,10 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
                 <div className={groupClass}>
                   <div>
                     <label className={labelClass}>Font Size</label>
-                    <input type="number" name="font_size" min={6} max={72} value={formData.font_size} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.font_size < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" name="font_size" min={1} max={72} value={formData.font_size} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.font_size < 1 ? 'red' : 'var(--border)' }} />
+                    {formData.font_size < 1 && visitedTabs.has('general') && (
+                      <p className="text-red-500 text-xs mt-1">Debe ser mínimo 1</p>
+                    )}
                   </div>
                   <div>
                     <label className={labelClass}>Font Color</label>
@@ -360,27 +351,32 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
                   </div>
                   <div>
                     <label className={labelClass}>First Line Indent (cm)</label>
-                    <input type="number" step="0.01" name="first_line_indent" value={formData.first_line_indent} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.first_line_indent < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="first_line_indent" value={formData.first_line_indent} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.first_line_indent < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.first_line_indent < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                 </div>
                 <div className={groupClass}>
                   <div>
                     <label className={labelClass}>Paragraph Before (pt)</label>
-                    <input type="number" name="paragraph_before" value={formData.paragraph_before} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.paragraph_before < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" min="0" name="paragraph_before" value={formData.paragraph_before} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.paragraph_before < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.paragraph_before < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                   <div>
                     <label className={labelClass}>Paragraph After (pt)</label>
-                    <input type="number" name="paragraph_after" value={formData.paragraph_after} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.paragraph_after < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" min="0" name="paragraph_after" value={formData.paragraph_after} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.paragraph_after < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.paragraph_after < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                 </div>
                 <div className={groupClass}>
                   <div>
                     <label className={labelClass}>Left Indent (cm)</label>
-                    <input type="number" step="0.01" name="left_indent" value={formData.left_indent} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.left_indent < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="left_indent" value={formData.left_indent} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.left_indent < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.left_indent < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                   <div>
                     <label className={labelClass}>Right Indent (cm)</label>
-                    <input type="number" step="0.01" name="right_indent" value={formData.right_indent} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.right_indent < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="right_indent" value={formData.right_indent} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.right_indent < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.right_indent < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                 </div>
               </TabsContent>
@@ -389,21 +385,25 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
                 <div className={groupClass}>
                   <div>
                     <label className={labelClass}>Top Margin (cm)</label>
-                    <input type="number" step="0.01" name="margin_top" value={formData.margin_top} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.margin_top < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="margin_top" value={formData.margin_top} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.margin_top < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.margin_top < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                   <div>
                     <label className={labelClass}>Bottom Margin (cm)</label>
-                    <input type="number" step="0.01" name="margin_bottom" value={formData.margin_bottom} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.margin_bottom < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="margin_bottom" value={formData.margin_bottom} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.margin_bottom < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.margin_bottom < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                 </div>
                 <div className={groupClass}>
                   <div>
                     <label className={labelClass}>Left Margin (cm)</label>
-                    <input type="number" step="0.01" name="margin_left" value={formData.margin_left} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.margin_left < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="margin_left" value={formData.margin_left} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.margin_left < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.margin_left < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                   <div>
                     <label className={labelClass}>Right Margin (cm)</label>
-                    <input type="number" step="0.01" name="margin_right" value={formData.margin_right} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.margin_right < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="margin_right" value={formData.margin_right} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.margin_right < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.margin_right < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                 </div>
                 <div className={groupClass}>
@@ -426,11 +426,13 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
                 <div className={groupClass}>
                   <div>
                     <label className={labelClass}>Header Distance (cm)</label>
-                    <input type="number" step="0.01" name="header_distance" value={formData.header_distance} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.header_distance < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="header_distance" value={formData.header_distance} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.header_distance < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.header_distance < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                   <div>
                     <label className={labelClass}>Footer Distance (cm)</label>
-                    <input type="number" step="0.01" name="footer_distance" value={formData.footer_distance} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.footer_distance < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="footer_distance" value={formData.footer_distance} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.footer_distance < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.footer_distance < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                 </div>
                 <div className="mb-4 flex items-center gap-2">
@@ -457,7 +459,8 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
                         <label className={labelClass}>Size</label>
-                        <input type="number" name={`heading${level}_size`} value={(formData as any)[`heading${level}_size`]} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: (formData as any)[`heading${level}_size`] < 0 ? 'red' : 'var(--border)' }} />
+                        <input type="number" min="1" name={`heading${level}_size`} value={(formData as any)[`heading${level}_size`]} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: (formData as any)[`heading${level}_size`] < 1 ? 'red' : 'var(--border)' }} />
+                        {(formData as any)[`heading${level}_size`] < 1 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 1</p>}
                       </div>
                       <div>
                         <label className={labelClass}>Alignment</label>
@@ -483,7 +486,8 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
                 <div className={groupClass}>
                   <div>
                     <label className={labelClass}>Hanging Indent (cm)</label>
-                    <input type="number" step="0.01" name="hanging_indent" value={formData.hanging_indent} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.hanging_indent < 0 ? 'red' : 'var(--border)' }} />
+                    <input type="number" step="0.01" min="0" name="hanging_indent" value={formData.hanging_indent} onChange={handleChange} className={inputClass} style={{ background: 'var(--bg)', borderColor: formData.hanging_indent < 0 ? 'red' : 'var(--border)' }} />
+                    {formData.hanging_indent < 0 && <p className="text-red-500 text-xs mt-1">Debe ser mínimo 0</p>}
                   </div>
                   <div>
                     <label className={labelClass}>Reference Spacing</label>
@@ -539,49 +543,20 @@ export const CustomFormatModal: React.FC<CustomFormatModalProps> = ({
           </Tabs>
         </div>
 
-        <div className="p-4 border-t flex items-center justify-between shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
-          {activeTab === 'general' ? (
-            <button 
-              type="button" 
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm font-medium border hover:bg-black/5 transition-colors cursor-pointer"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              Cancel
-            </button>
-          ) : (
-            <button 
-              type="button" 
-              onClick={handleBack}
-              className="px-4 py-2 rounded-lg text-sm font-medium border hover:bg-black/5 transition-colors cursor-pointer flex items-center gap-2"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <ArrowLeft size={16} /> Back
-            </button>
-          )}
-
-          {activeTab === 'review' ? (
-            <button 
-              type="submit" 
-              form="customFormatForm"
-              disabled={loading || !allRequiredSectionsComplete()}
-              className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2 text-white transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:hover:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
-              style={{ background: 'var(--accent)' }}
-            >
-              <Save size={16} />
-              {loading ? 'Saving...' : 'Save Format'}
-            </button>
-          ) : (
-            <button 
-              type="button" 
-              onClick={handleNext}
-              disabled={!isTabValid(activeTab)}
-              className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2 text-white transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:hover:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
-              style={{ background: 'var(--accent)' }}
-            >
-              Next <ArrowRight size={16} />
-            </button>
-          )}
+        <div className="p-4 border-t flex items-center justify-between shrink-0 gap-4" style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+          <span className="text-xs font-medium opacity-70">
+            Haz clic en las pestañas superiores para navegar por las secciones.
+          </span>
+          <button 
+            type="submit" 
+            form="customFormatForm"
+            disabled={loading || !allRequiredSectionsComplete()}
+            className="px-6 py-2 rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2 text-white transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 shadow-sm disabled:opacity-50 disabled:hover:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none shrink-0"
+            style={{ background: 'var(--accent)' }}
+          >
+            <Save size={16} />
+            {loading ? 'Guardando...' : 'Guardar Formato'}
+          </button>
         </div>
       </div>
     </div>

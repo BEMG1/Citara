@@ -22,8 +22,16 @@ export class ComplianceEngine {
   static analyzeDocument(data: IDocumentData, format: CitationFormat): ComplianceReport {
     const engine = engines[format];
     
-    if (!engine) {
-      throw new Error(`Norm engine for format ${format} not found.`);
+    // Custom formats don't have strict compliance rules yet.
+    if (format === 'custom' || !engine) {
+      return {
+        format,
+        score: 100,
+        compliantElements: [],
+        missingElements: [],
+        warnings: [],
+        isNormalizable: true
+      };
     }
 
     const results = engine.rules.map(rule => rule.evaluate(data));

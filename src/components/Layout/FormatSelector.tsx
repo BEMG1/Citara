@@ -8,12 +8,12 @@ import { CustomFormatModal } from '../Settings/CustomFormatModal';
 import type { CustomCitationFormat } from '@/services/supabase/customFormats';
 import { useAuth } from '@/context/AuthContext';
 
-const FORMAT_ORDER: CitationFormat[] = ['apa7', 'apa6', 'ieee', 'upel'];
+const FORMAT_ORDER: CitationFormat[] = ['apa7', 'ieee', 'upel'];
 
 export const FormatSelector: React.FC = () => {
-  const { citationFormat, setCitationFormat } = useCitationFormat();
+  const { citationFormat, setCitationFormat, customFormatId } = useCitationFormat();
   const { customFormats, deleteFormat } = useCustomFormats();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { t } = useLanguage();
   const [isFormatDropdownOpen, setIsFormatDropdownOpen] = useState(false);
   const formatDropdownRef = useRef<HTMLDivElement>(null);
@@ -37,7 +37,7 @@ export const FormatSelector: React.FC = () => {
 
   const getFormatKey = (fmt: CitationFormat) => {
     if (fmt === 'apa7') return { label: 'formatAPA7', desc: 'formatAPA7Desc' };
-    if (fmt === 'apa6') return { label: 'formatAPA6', desc: 'formatAPA6Desc' };
+    // if (fmt === 'apa6') return { label: 'formatAPA6', desc: 'formatAPA6Desc' };
     if (fmt === 'ieee') return { label: 'formatIEEE', desc: 'formatIEEEDesc' };
     if (fmt === 'upel') return { label: 'formatUPEL', desc: 'formatUPELDesc' };
     return { label: 'formatAPA7', desc: 'formatAPA7Desc' };
@@ -47,13 +47,15 @@ export const FormatSelector: React.FC = () => {
     ? getFormatKey(citationFormat as any)
     : { label: citationFormat, desc: '' };
     
-  const customFormatActive = customFormats.find(f => f.name === citationFormat);
+  const customFormatActive = citationFormat === 'custom' && customFormatId 
+    ? customFormats.find(f => f.id.toString() === customFormatId) 
+    : undefined;
 
   const handleDelete = async (e: React.MouseEvent, id: number, name: string) => {
     e.stopPropagation();
     if (confirm(`Are you sure you want to delete the format "${name}"?`)) {
       await deleteFormat(id);
-      if (citationFormat === name) {
+      if (citationFormat === 'custom' && customFormatId === id.toString()) {
         setCitationFormat('apa7');
       }
     }
@@ -89,7 +91,7 @@ export const FormatSelector: React.FC = () => {
               <ChevronDown size={14} strokeWidth={1.6} className={`transition-transform duration-200 ${isFormatDropdownOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--text-3)' }} />
             </button>
           </TooltipTrigger>
-          <TooltipContent>
+          <TooltipContent className="z-[100]">
             <p>{t('formatSelectorTitle') || 'Citation Format'}</p>
           </TooltipContent>
         </Tooltip>
@@ -152,14 +154,14 @@ export const FormatSelector: React.FC = () => {
                       </div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>
+                  <TooltipContent className="z-[100]">
                     <p>{t('loginRequiredFeature') as string}</p>
                   </TooltipContent>
                 </Tooltip>
               ) : (
                 <>
                   {customFormats.map((fmt) => {
-                    const isActive = fmt.name === citationFormat;
+                    const isActive = citationFormat === 'custom' && customFormatId === fmt.id.toString();
                     return (
                       <div
                         key={fmt.id}
@@ -171,7 +173,10 @@ export const FormatSelector: React.FC = () => {
                       >
                         <button
                           className="flex-1 text-left flex items-center min-w-0 cursor-pointer"
-                          onClick={() => { setCitationFormat(fmt.name as any); setIsFormatDropdownOpen(false); }}
+                          onClick={() => { 
+                            setCitationFormat('custom', fmt.id.toString(), fmt); 
+                            setIsFormatDropdownOpen(false); 
+                          }}
                         >
                           <span className="block text-sm font-semibold truncate pr-2" style={{ color: isActive ? 'var(--accent)' : 'var(--text)' }}>
                             {fmt.name}
@@ -199,14 +204,33 @@ export const FormatSelector: React.FC = () => {
                     );
                   })}
                   
-                  <button
-                    onClick={handleCreate}
-                    className="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    <Plus size={16} strokeWidth={2} />
-                    <span className="text-sm font-semibold">{t('createCustomFormat') as string}</span>
-                  </button>
+                  {Number(profile?.userType) !== 1 && customFormats.length >= 1 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="opacity-50 cursor-not-allowed">
+                          <div
+                            className="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all"
+                            style={{ color: 'var(--accent)' }}
+                          >
+                            <Plus size={16} strokeWidth={2} />
+                            <span className="text-sm font-semibold">{t('createCustomFormat') as string}</span>
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="z-[100]">
+                        <p>Para crear más formatos personalizados actualiza tu plan a uno premium</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <button
+                      onClick={handleCreate}
+                      className="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      <Plus size={16} strokeWidth={2} />
+                      <span className="text-sm font-semibold">{t('createCustomFormat') as string}</span>
+                    </button>
+                  )}
                 </>
               )}
             </div>
