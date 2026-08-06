@@ -16,6 +16,7 @@ import { upelFormatter } from './upel.tsx';
  */
 export const CITATION_FORMATTERS: Record<Exclude<CitationFormat, 'custom'>, ICitationFormatter> = {
   apa7: apa7Formatter,
+  apa6: apa6Formatter,
   ieee: ieeeFormatter,
   upel: upelFormatter,
 };
@@ -28,7 +29,12 @@ export const FORMAT_CONFIGS: Record<Exclude<CitationFormat, 'custom'>, ICitation
     label: 'APA 7ª Ed.',
     subtitle: '7ª Edición · Alfa',
     description: 'American Psychological Association, 7.ª edición (2020). Formato más reciente.',
-  },  
+  },
+  apa6: {
+    label: 'APA 6ª Ed.',
+    subtitle: '6ª Edición',
+    description: 'American Psychological Association, 6.ª edición (2009). Formato anterior al estándar actual.',
+  },
   ieee: {
     label: 'IEEE',
     subtitle: 'IEEE · Numérico',

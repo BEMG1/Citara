@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { X, Save, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useCustomFormats } from '@/context/CustomFormatsContext';
 import type { CustomCitationFormat, CustomCitationFormatInsert } from '@/services/supabase/customFormats';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';

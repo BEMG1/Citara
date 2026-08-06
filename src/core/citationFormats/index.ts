@@ -14,7 +14,7 @@ import { upelFormatter } from './upel.tsx';
  * Map of all available formatters keyed by their CitationFormat id.
  * Add new formats here to make them available throughout the app.
  */
-export const CITATION_FORMATTERS: Record<CitationFormat, ICitationFormatter> = {
+export const CITATION_FORMATTERS: Record<Exclude<CitationFormat, 'custom'>, ICitationFormatter> = {
   apa7: apa7Formatter,
   apa6: apa6Formatter,
   ieee: ieeeFormatter,
@@ -24,7 +24,7 @@ export const CITATION_FORMATTERS: Record<CitationFormat, ICitationFormatter> = {
 /**
  * Display metadata for each format, used in UI selectors and the app header.
  */
-export const FORMAT_CONFIGS: Record<CitationFormat, ICitationFormatConfig> = {
+export const FORMAT_CONFIGS: Record<Exclude<CitationFormat, 'custom'>, ICitationFormatConfig> = {
   apa7: {
     label: 'APA 7ª Ed.',
     subtitle: '7ª Edición · Alfa',
