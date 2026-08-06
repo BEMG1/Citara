@@ -1,7 +1,7 @@
 import type { IReference } from '@/utils/referenceUtils';
 
 // ─── Supported citation format identifiers ───────────────────────────────────
-export type CitationFormat = 'apa7' | 'ieee' | 'upel' | 'custom';
+export type CitationFormat = 'apa7' | 'apa6' | 'ieee' | 'upel' | 'custom';
 
 // ─── Display metadata for UI ─────────────────────────────────────────────────
 export interface ICitationFormatConfig {

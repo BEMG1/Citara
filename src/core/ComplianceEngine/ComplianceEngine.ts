@@ -5,7 +5,7 @@ import { apa6Engine } from './APA6/index.ts';
 import { ieeeEngine } from './IEEE/index.ts';
 import { upelEngine } from './UPEL/index.ts';
 
-const engines: Record<CitationFormat, INormEngine> = {
+const engines: Record<Exclude<CitationFormat, 'custom'>, INormEngine> = {
   apa7: apa7Engine,
   apa6: apa6Engine,
   ieee: ieeeEngine,
@@ -20,10 +20,20 @@ export class ComplianceEngine {
    * @returns A detailed compliance report
    */
   static analyzeDocument(data: IDocumentData, format: CitationFormat): ComplianceReport {
-    const engine = engines[format];
-    
     // Custom formats don't have strict compliance rules yet.
-    if (format === 'custom' || !engine) {
+    if (format === 'custom') {
+      return {
+        format,
+        score: 100,
+        compliantElements: [],
+        missingElements: [],
+        warnings: [],
+        isNormalizable: true
+      };
+    }
+
+    const engine = engines[format];
+    if (!engine) {
       return {
         format,
         score: 100,

@@ -166,7 +166,7 @@ const ReferencesManager: React.FC = () => {
                     />
                     <div className="mt-4 p-3 rounded-md" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent)' }}>
                       <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--accent)', fontFamily: 'var(--mono-font)' }}>
-                        {t('preview')} · {FORMAT_CONFIGS[citationFormat].label}
+                        {t('preview')} · {citationFormat === 'custom' ? 'Formato Personalizado' : FORMAT_CONFIGS[citationFormat as keyof typeof FORMAT_CONFIGS].label}
                       </p>
                       <p className="text-sm" style={{ paddingLeft: '2em', textIndent: '-2em', color: 'var(--text)', fontFamily: 'var(--doc-font)' }}>
                         {formatter.formatReferenceJSX(ref, language)}
