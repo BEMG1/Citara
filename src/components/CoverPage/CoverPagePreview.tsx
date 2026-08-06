@@ -22,8 +22,7 @@ interface CoverPagePreviewProps {
  */
 const CoverPagePreview: React.FC<CoverPagePreviewProps> = ({ coverPage, citationFormat }) => {
   const isIEEE = citationFormat === 'ieee';
-  const isUpel = citationFormat === 'upel';
-  const isAPA = citationFormat === 'apa7' || citationFormat === 'apa6';
+  const isAPA = citationFormat === 'apa7';
   const { t } = useLanguage();
 
   const hasContent =
@@ -153,7 +152,7 @@ const CoverPagePreview: React.FC<CoverPagePreviewProps> = ({ coverPage, citation
       {/* Format badge */}
       <div className="mt-2 px-2 py-0.5 rounded-full nj-bg-accent-s border nj-border">
         <span className="text-xs nj-accent font-medium">
-          {citationFormat === 'apa7' ? 'APA 7ª Ed.' : citationFormat === 'apa6' ? 'APA 6ª Ed.' : citationFormat === 'upel' ? 'UPEL' : 'IEEE'}
+          {citationFormat === 'apa7' ? 'APA 7ª Ed.' :  citationFormat === 'upel' ? 'UPEL' : 'IEEE'}
         </span>
       </div>
     </div>

@@ -20,8 +20,8 @@ import { FigureNode } from './FigureNode';
 import { FigureModal } from './FigureModal';
 import { ImageIcon } from 'lucide-react';
 import type { IFigure } from '@/interfaces/IFigure';
-
-
+import { StyleTransitionLoader } from '@/components/ui/StyleTransitionLoader';
+import { DocumentStyleInjector } from './DocumentStyleInjector';
 
 const CustomParagraph = Paragraph.extend({
   addAttributes() {
@@ -163,12 +163,13 @@ const DocumentEditor: React.FC = () => {
   const { references, setReferences } = useReferences();
   const { coverPage, setCoverPage, resetCoverPage } = useCoverPage();
   const { t, language } = useLanguage();
-  const { citationFormat } = useCitationFormat();
+  const { citationFormat, documentStyle } = useCitationFormat();
   const { figures, addFigure, setFigures, setEditorInstance } = useFigures();
   const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null);
   const [isNormalized, setIsNormalized] = useState(false);
   const [isFigureModalOpen, setIsFigureModalOpen] = useState(false);
   const [figureModalType, setFigureModalType] = useState<'figure' | 'table' | 'cuadro'>('figure');
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -378,6 +379,13 @@ const DocumentEditor: React.FC = () => {
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, citationFormat, isNormalized, editor, setComplianceScore, references, coverPage.enabled, figures]);
+
+  // Handle visual transition when format changes
+  useEffect(() => {
+    setIsTransitioning(true);
+    const timer = setTimeout(() => setIsTransitioning(false), 2000);
+    return () => clearTimeout(timer);
+  }, [documentStyle]);
 
   // --- File handling ---
 
@@ -1007,6 +1015,9 @@ const DocumentEditor: React.FC = () => {
       </div>
 
 
+      {/* Estilos dinámicos basados en documentStyle del StyleEngine */}
+      <DocumentStyleInjector documentStyle={documentStyle} />
+
       {/* Estilos de listas — inyectados con alta especificidad para sobrescribir el reset de Tailwind */}
       <style>{`
         div.tiptap.ProseMirror ul,
@@ -1052,7 +1063,7 @@ const DocumentEditor: React.FC = () => {
 
       {/* Editor area */}
       <div
-        className={`relative flex-1 w-full overflow-y-auto min-h-0 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-[color:var(--accent)] focus-within:outline-none transition-shadow duration-150 ${isNormalized ? (citationFormat === 'upel' ? 'upel-normalized-doc' : 'apa-normalized-doc') : ''}`}
+        className={`relative flex-1 w-full overflow-y-auto min-h-0 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-[color:var(--accent)] focus-within:outline-none transition-shadow duration-150`}
         style={{ background: 'var(--surface)', border: `1px solid ${isDragging ? 'var(--accent)' : 'var(--border)'}` }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -1073,7 +1084,7 @@ const DocumentEditor: React.FC = () => {
       </div>
       {isNormalized && (
         <div className="mb-2 px-3 py-2 bg-green-900/30 border border-green-800/50 rounded-md text-sm text-green-300 flex items-center gap-2">
-          Documento normalizado automáticamente según reglas de {citationFormat === 'apa7' ? 'APA 7' : citationFormat === 'apa6' ? 'APA 6' : 'IEEE'}.
+          Documento normalizado automáticamente según reglas de {citationFormat === 'apa7' ? 'APA 7' : 'IEEE'}.
         </div>
       )}
 
@@ -1122,6 +1133,7 @@ const DocumentEditor: React.FC = () => {
           }
         }}
       />
+      <StyleTransitionLoader isVisible={isTransitioning} />
     </div>
   );
 };
