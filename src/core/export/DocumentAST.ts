@@ -25,6 +25,7 @@ export interface HyperlinkNode {
 export interface CitationNode {
   type: 'citation';
   refId: string;
+  text: string;
 }
 
 export type InlineNode = TextRunNode | HyperlinkNode | CitationNode;

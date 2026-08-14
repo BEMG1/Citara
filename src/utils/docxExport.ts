@@ -35,8 +35,11 @@ import { extractHeadings, extractFigures } from "./tocUtils";
 
 import { HtmlParser } from "../core/export/HtmlParser";
 import type { InlineNode, BlockNode, ParagraphNode, HeadingNode, ListNode, ImageNode, TextRunNode, HyperlinkNode, CitationNode } from "../core/export/DocumentAST";
+import type { ResolvedDocumentStyle } from "../core/StyleEngine/types";
 
-const margin = convertInchesToTwip(1);
+const cmToTwip = (cm: number) => Math.round((cm / 2.54) * 1440);
+const ptToHalfPt = (pt: number) => Math.round(pt * 2);
+const getLineSpacing = (spacing: number) => Math.round(240 * spacing);
 
 import { es, en } from "../i18n";
 
@@ -304,6 +307,7 @@ export const exportToDocx = async (
   startNumberingOnCover: boolean = true,
   generateTOC: boolean = false,
   formatId?: string,
+  documentStyle?: ResolvedDocumentStyle,
 ) => {
   // ── Sort references according to formatter's sort mode ─────────────────────
   let sortedRefs: IReference[];
@@ -341,7 +345,9 @@ export const exportToDocx = async (
   const ast = HtmlParser.parse(text);
 
   const getDocxAlignment = (align?: string) => {
-    switch (align) {
+    if (!align) return undefined;
+    const lower = align.toLowerCase();
+    switch (lower) {
       case 'center': return AlignmentType.CENTER;
       case 'right': return AlignmentType.RIGHT;
       case 'left': return AlignmentType.LEFT;
@@ -349,6 +355,14 @@ export const exportToDocx = async (
       default: return undefined;
     }
   };
+
+  // Fallbacks in case documentStyle is somehow not provided
+  const baseLineSpacing = documentStyle ? getLineSpacing(documentStyle.paragraph.lineSpacing) : 480;
+  const baseIndent = documentStyle ? cmToTwip(documentStyle.paragraph.firstLineIndent) : convertInchesToTwip(0.5);
+  const baseAlign = documentStyle ? getDocxAlignment(documentStyle.paragraph.textAlignment) || AlignmentType.JUSTIFIED : AlignmentType.JUSTIFIED;
+  const pBefore = documentStyle ? cmToTwip(documentStyle.paragraph.paragraphBefore) : 0;
+  const pAfter = documentStyle ? cmToTwip(documentStyle.paragraph.paragraphAfter) : 0;
+
 
   const mapInlineNode = (node: InlineNode): any => {
     if (node.type === 'text') {
@@ -363,7 +377,7 @@ export const exportToDocx = async (
     }
     if (node.type === 'hyperlink') {
       const linkNode = node as HyperlinkNode;
-      const children = linkNode.children.map(c => mapInlineNode(c));
+      const children = linkNode.children.flatMap(c => mapInlineNode(c));
       return new ExternalHyperlink({ link: linkNode.url, children });
     }
     if (node.type === 'citation') {
@@ -373,10 +387,13 @@ export const exportToDocx = async (
         const idx = refIndexMap.get(ref.id);
         const citationText = formatter.formatInTextCitation(ref, idx, lang);
         if (citationText) {
-          return new TextRun({ text: citationText });
+          return [
+            new TextRun({ text: citationNode.text || "" }),
+            new TextRun({ text: ` ${citationText}` })
+          ];
         }
       }
-      return new TextRun({ text: "" });
+      return new TextRun({ text: citationNode.text || "" });
     }
     return new TextRun({ text: "" });
   };
@@ -384,13 +401,14 @@ export const exportToDocx = async (
   const mapBlockNode = (node: BlockNode): Paragraph | Paragraph[] | null => {
     if (node.type === 'paragraph') {
       const pNode = node as ParagraphNode;
+      const pAlign = getDocxAlignment(pNode.format?.alignment) || baseAlign;
       return new Paragraph({
-        children: pNode.children.map(mapInlineNode),
-        alignment: getDocxAlignment(pNode.format?.alignment) || AlignmentType.JUSTIFIED,
+        children: pNode.children.flatMap(mapInlineNode),
+        alignment: pAlign,
         indent: pNode.format?.indent !== undefined 
           ? { firstLine: pNode.format.indent } 
-          : { firstLine: convertInchesToTwip(0.5) },
-        spacing: { line: 480 },
+          : (baseIndent > 0 ? { firstLine: baseIndent } : undefined),
+        spacing: { line: baseLineSpacing, before: pBefore, after: pAfter },
       });
     }
 
@@ -398,24 +416,24 @@ export const exportToDocx = async (
       const hNode = node as HeadingNode;
       let headingLvl: any = HeadingLevel.HEADING_1;
       let defaultAlign: any = AlignmentType.CENTER;
-      let childrenRuns = hNode.children.map(mapInlineNode);
+      let childrenRuns = hNode.children.flatMap(mapInlineNode);
 
       if (hNode.level === 1) {
         headingLvl = HeadingLevel.HEADING_1;
-        defaultAlign = AlignmentType.CENTER;
+        defaultAlign = documentStyle ? getDocxAlignment(documentStyle.heading1.alignment) : AlignmentType.CENTER;
       } else if (hNode.level === 2) {
         headingLvl = HeadingLevel.HEADING_2;
-        defaultAlign = AlignmentType.LEFT;
+        defaultAlign = documentStyle ? getDocxAlignment(documentStyle.heading2.alignment) : AlignmentType.LEFT;
       } else if (hNode.level === 3) {
         headingLvl = HeadingLevel.HEADING_3;
-        defaultAlign = AlignmentType.LEFT;
+        defaultAlign = documentStyle ? getDocxAlignment(documentStyle.heading3.alignment) : AlignmentType.LEFT;
       }
 
       return new Paragraph({
         children: childrenRuns,
         heading: headingLvl,
-        alignment: getDocxAlignment(hNode.format?.alignment) || defaultAlign,
-        spacing: { line: 480 },
+        alignment: getDocxAlignment(hNode.format?.alignment) || defaultAlign || AlignmentType.LEFT,
+        spacing: { line: baseLineSpacing, before: pBefore || 240, after: pAfter || 240 },
         pageBreakBefore: (hNode.level === 1 && formatId === 'upel') ? true : undefined,
       });
     }
@@ -430,7 +448,7 @@ export const exportToDocx = async (
         item.children.forEach(block => {
           if (block.type === 'paragraph') {
             const p = block as ParagraphNode;
-            itemChildren.push(...p.children.map(mapInlineNode));
+            itemChildren.push(...p.children.flatMap(mapInlineNode));
           }
         });
 
@@ -438,7 +456,7 @@ export const exportToDocx = async (
           children: itemChildren,
           alignment: AlignmentType.LEFT,
           indent: { left: convertInchesToTwip(0.5), hanging: convertInchesToTwip(0.25) },
-          spacing: { line: 480 },
+          spacing: { line: baseLineSpacing, before: pBefore, after: pAfter },
         });
       });
     }
@@ -580,6 +598,14 @@ export const exportToDocx = async (
     return Object.keys(f).length > 0 ? f : undefined;
   };
 
+  // Calculate margins based on style
+  const marginTop = documentStyle ? cmToTwip(documentStyle.page.marginTop) : convertInchesToTwip(1);
+  const marginBottom = documentStyle ? cmToTwip(documentStyle.page.marginBottom) : convertInchesToTwip(1);
+  const marginLeft = documentStyle ? cmToTwip(documentStyle.page.marginLeft) : convertInchesToTwip(1);
+  const marginRight = documentStyle ? cmToTwip(documentStyle.page.marginRight) : convertInchesToTwip(1);
+  const headerDistance = documentStyle ? cmToTwip(documentStyle.page.headerDistance) : convertInchesToTwip(0.5);
+  const footerDistance = documentStyle ? cmToTwip(documentStyle.page.footerDistance) : convertInchesToTwip(0.5);
+
   const coverSection = coverPage?.enabled
     ? [
         {
@@ -587,7 +613,7 @@ export const exportToDocx = async (
             type: "nextPage" as const,
             titlePage: !startNumberingOnCover || isUpel,
             page: {
-              margin: { top: margin, right: margin, bottom: margin, left: margin },
+              margin: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft, header: headerDistance, footer: footerDistance },
               pageNumbers: { start: 1, formatType: isUpel ? NumberFormat.LOWER_ROMAN : NumberFormat.DECIMAL },
             },
           },        
@@ -678,7 +704,7 @@ export const exportToDocx = async (
         properties: {
           type: "nextPage" as const,
           page: {
-            margin: { top: margin, right: margin, bottom: margin, left: margin },
+            margin: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft, header: headerDistance, footer: footerDistance },
             pageNumbers: isUpel ? { formatType: NumberFormat.LOWER_ROMAN } : undefined,
           },
         },
@@ -690,14 +716,21 @@ export const exportToDocx = async (
   }
 
 
+  const fontFamily = documentStyle ? documentStyle.typography.fontFamily : "Times New Roman";
+  const fontSize = documentStyle ? ptToHalfPt(documentStyle.typography.fontSize) : 24;
+  const h1Size = documentStyle ? ptToHalfPt(documentStyle.heading1.size) : 24;
+  const h2Size = documentStyle ? ptToHalfPt(documentStyle.heading2.size) : 24;
+  const h3Size = documentStyle ? ptToHalfPt(documentStyle.heading3.size) : 24;
+
   const doc = new Document({
     features: { updateFields: true },
     styles: {
       default: {
         document: {
           run: {
-            font: "Times New Roman",
-            size: 24,
+            font: fontFamily,
+            size: fontSize,
+            color: documentStyle?.typography.fontColor ? documentStyle.typography.fontColor.replace('#', '') : "000000",
           },
         },
       },
@@ -708,10 +741,15 @@ export const exportToDocx = async (
           basedOn: "Normal",
           next: "Normal",
           quickFormat: true,
-          run: { bold: true, size: 24, color: "000000" },
+          run: { 
+            bold: documentStyle?.heading1.bold ?? true, 
+            italics: documentStyle?.heading1.italic ?? false, 
+            size: h1Size, 
+            color: "000000" 
+          },
           paragraph: {
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 240, after: 240, line: 480 },
+            alignment: documentStyle ? getDocxAlignment(documentStyle.heading1.alignment) : AlignmentType.CENTER,
+            spacing: { before: 240, after: 240, line: baseLineSpacing },
             keepNext: true,
           },
         },
@@ -721,10 +759,15 @@ export const exportToDocx = async (
           basedOn: "Normal",
           next: "Normal",
           quickFormat: true,
-          run: { bold: true, size: 24, color: "000000" },
+          run: { 
+            bold: documentStyle?.heading2.bold ?? true, 
+            italics: documentStyle?.heading2.italic ?? false, 
+            size: h2Size, 
+            color: "000000" 
+          },
           paragraph: {
-            alignment: AlignmentType.LEFT,
-            spacing: { before: 240, after: 240, line: 480 },
+            alignment: documentStyle ? getDocxAlignment(documentStyle.heading2.alignment) : AlignmentType.LEFT,
+            spacing: { before: 240, after: 240, line: baseLineSpacing },
             keepNext: true,
           },
         },
@@ -734,10 +777,15 @@ export const exportToDocx = async (
           basedOn: "Normal",
           next: "Normal",
           quickFormat: true,
-          run: { bold: true, italics: true, size: 24, color: "000000" },
+          run: { 
+            bold: documentStyle?.heading3.bold ?? true, 
+            italics: documentStyle?.heading3.italic ?? true, 
+            size: h3Size, 
+            color: "000000" 
+          },
           paragraph: {
-            alignment: AlignmentType.LEFT,
-            spacing: { before: 240, after: 240, line: 480 },
+            alignment: documentStyle ? getDocxAlignment(documentStyle.heading3.alignment) : AlignmentType.LEFT,
+            spacing: { before: 240, after: 240, line: baseLineSpacing },
           },
         },
       ],
@@ -749,7 +797,7 @@ export const exportToDocx = async (
         properties: {
           titlePage: (!coverPage?.enabled && !startNumberingOnCover) ? true : undefined,
           page: {
-            margin: { top: margin, right: margin, bottom: margin, left: margin },
+            margin: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft, header: headerDistance, footer: footerDistance },
             pageNumbers: isUpel 
               ? { start: 1, formatType: NumberFormat.DECIMAL } 
               : (!coverPage?.enabled ? { start: 1, formatType: NumberFormat.DECIMAL } : undefined),
@@ -763,7 +811,7 @@ export const exportToDocx = async (
         properties: {
           type: "nextPage",
           page: {
-            margin: { top: margin, right: margin, bottom: margin, left: margin },
+            margin: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft, header: headerDistance, footer: footerDistance },
           },
         },
         footers: undefined,

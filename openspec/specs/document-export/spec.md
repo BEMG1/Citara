@@ -1,11 +1,16 @@
-## ADDED Requirements
+﻿# Document Export Specification
+
+## Purpose
+TBD ... Update Purpose after archive
+
+## Requirements
 
 ### Requirement: Fidelity of Formatting
-Todo formato aplicado dentro del editor deberá conservarse durante la exportación (Fuente, Tamaño, Negrita, Cursiva, Alineación, Sangría, Espaciado, Títulos, Listas, etc.).
+Todo formato aplicado dentro del editor, proveniente de la fábrica de estilos (style-engine / ResolvedDocumentStyle), deberá consumirse e inyectarse durante la exportación para garantizar que el documento final conserve dichas propiedades (Fuente, Tamaño, Negrita, Cursiva, Alineación, Sangría, Espaciado, Títulos, Listas, Márgenes de página, etc.). El exportador no deberá tener lógica condicional basada en el nombre del formato, sino depender exclusivamente de los estilos resueltos.
 
 #### Scenario: Word export preserves all styles
-- **WHEN** un documento con distintos formatos de texto se exporta a Word
-- **THEN** todos los estilos deberán mantenerse.
+- **WHEN** un documento con distintos formatos de texto definidos por el motor de estilos se exporta a Word
+- **THEN** el exportador deberá consumir el ResolvedDocumentStyle e inyectar todos los estilos para que se mantengan en el documento generado.
 
 ### Requirement: Visual Consistency
 El documento exportado deberá mantener una apariencia visual equivalente a la mostrada en el editor. Diferencias mínimas por el motor de renderizado están permitidas siempre que no alteren estructura, jerarquía o intención.
@@ -27,3 +32,17 @@ Toda nueva funcionalidad de formato incorporada al editor deberá incluir el sop
 #### Scenario: New format export preservation
 - **WHEN** dicho formato se exporta
 - **THEN** deberá conservarse correctamente en todos los formatos de salida soportados.
+
+### Requirement: Export Style Consumption
+El proceso de exportación (Word y PDF) SHALL consumir directamente la configuración de estilos de la fábrica de estilos actual (ResolvedDocumentStyle) para la generación de la salida.
+
+#### Scenario: PDF and Word Export use Style Engine
+- **WHEN** un documento se exporta a PDF o Word
+- **THEN** el exportador utiliza las propiedades del ResolvedDocumentStyle activo para formatear márgenes, tipografía, párrafos y encabezados del documento.
+
+### Requirement: Citation Rendering Behavior
+Al exportar un documento, el sistema SHALL preservar el texto original contenido en cualquier nodo de cita (e.g. elementos marcados con `data-reference-id`). La cita formateada resultante de la referencia activa SHALL ser anexada inmediatamente después del texto original, sin reemplazarlo ni eliminarlo.
+
+#### Scenario: Appending citation to marked text
+- **WHEN** el documento exportado contiene un texto enlazado a una referencia
+- **THEN** el sistema preserva el texto original y agrega la cita correspondiente justo a continuación (ej: "texto referenciado (Autor, Año)").

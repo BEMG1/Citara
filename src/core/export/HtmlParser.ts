@@ -72,7 +72,8 @@ export class HtmlParser {
       if (el.tagName === "MARK" && el.hasAttribute("data-reference-id")) {
         return [{
           type: 'citation',
-          refId: el.getAttribute("data-reference-id") || ""
+          refId: el.getAttribute("data-reference-id") || "",
+          text: el.textContent || ""
         } as CitationNode];
       }
 

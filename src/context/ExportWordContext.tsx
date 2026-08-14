@@ -13,7 +13,7 @@ export const ExportWordProvider: React.FC<{ children: ReactNode }> = ({ children
   const { documentText, documentTitle, pageNumberPosition, startNumberingOnCover, generateTOC } = useDocument();
 
   const { references } = useReferences();
-  const { formatter, citationFormat } = useCitationFormat();
+  const { formatter, citationFormat, documentStyle } = useCitationFormat();
   const { coverPage } = useCoverPage();
   const { language } = useLanguage();
   const [showExportWarning, setShowExportWarning] = useState(false);
@@ -26,18 +26,18 @@ export const ExportWordProvider: React.FC<{ children: ReactNode }> = ({ children
       setShowExportWarning(true);
     } else {
       const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
-      exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat);
+      exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat, documentStyle);
 
     }
-  }, [references, documentTitle, documentText, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat]);
+  }, [references, documentTitle, documentText, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat, documentStyle]);
 
 
   const handleExportAnyway = useCallback(async () => {
     setShowExportWarning(false);
     const suggestedName = `${documentTitle}_Citara` || "Document_Citara";
-    await exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat);
+    await exportToDocx(documentText, references, suggestedName, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat, documentStyle);
 
-  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat]);
+  }, [documentTitle, documentText, references, formatter, language, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, citationFormat, documentStyle]);
 
 
   const value = useMemo(
