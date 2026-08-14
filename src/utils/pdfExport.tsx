@@ -4,8 +4,10 @@ import { getYear } from './referenceUtils';
 import { HtmlParser } from '../core/export/HtmlParser';
 import type { InlineNode, ParagraphNode, HeadingNode, ListNode, ImageNode, TextRunNode, HyperlinkNode, CitationNode } from '../core/export/DocumentAST';
 import type { ICitationFormatter } from './citationFormats/types';
+import type { ResolvedDocumentStyle } from '../core/StyleEngine/types';
 import type { ICoverPageData } from '../interfaces/ICoverPage';
 import type { PageNumberPosition } from '../context/DocumentContext';
+
 import { es, en } from '../i18n';
 import { estimateHeadingPages, estimateFigurePages } from './tocUtils';
 import React from 'react';
@@ -14,163 +16,180 @@ import React from 'react';
 const tText = (key: keyof typeof es, lang?: string): string =>
   ((lang === 'en' ? en[key] : es[key]) ?? es[key]) as string;
 
-// APA 7 uses 12pt Times New Roman, 1-inch margins, double-spaced
-// In @react-pdf/renderer, units are in points (pt). 1in = 72pt.
-const MARGIN = 72;    // 1 inch
-const FONT_SIZE = 12;
-const LINE_HEIGHT = 2;
+const cmToPt = (cm: number) => (cm / 2.54) * 72;
 
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: 'Times-Roman',
-    fontSize: FONT_SIZE,
-    paddingTop: MARGIN,
-    paddingBottom: MARGIN,
-    paddingLeft: MARGIN,
-    paddingRight: MARGIN,
-    backgroundColor: '#ffffff',
-    color: '#000000',
-  },
-  // Base Page number style
-  pageNumberBase: {
-    position: 'absolute',
-    fontSize: FONT_SIZE,
-    fontFamily: 'Times-Roman',
-    color: '#000000',
-  },
-  // Cover page styles
-  coverPage: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coverTitle: {
-    fontFamily: 'Times-Bold',
-    fontSize: FONT_SIZE,
-    textAlign: 'center',
-    marginBottom: 12,
-    color: '#000000',
-  },
-  coverText: {
-    fontFamily: 'Times-Roman',
-    fontSize: FONT_SIZE,
-    textAlign: 'center',
-    marginBottom: 8,
-    color: '#000000',
-  },
-  // Document body
-  docTitle: {
-    fontFamily: 'Times-Bold',
-    fontSize: FONT_SIZE,
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: LINE_HEIGHT,
-    color: '#000000',
-  },
-  h1: {
-    fontFamily: 'Times-Bold',
-    fontSize: FONT_SIZE,
-    textAlign: 'center',
-    marginBottom: 12,
-    marginTop: 12,
-    lineHeight: LINE_HEIGHT,
-    color: '#000000',
-  },
-  h2: {
-    fontFamily: 'Times-Bold',
-    fontSize: FONT_SIZE,
-    textAlign: 'left',
-    marginBottom: 12,
-    marginTop: 12,
-    lineHeight: LINE_HEIGHT,
-    color: '#000000',
-  },
-  h3: {
-    fontFamily: 'Times-BoldItalic',
-    fontSize: FONT_SIZE,
-    textAlign: 'left',
-    marginBottom: 12,
-    marginTop: 12,
-    lineHeight: LINE_HEIGHT,
-    color: '#000000',
-  },
-  paragraph: {
-    fontFamily: 'Times-Roman',
-    fontSize: FONT_SIZE,
-    textAlign: 'justify',
-    marginBottom: 0,
-    lineHeight: LINE_HEIGHT,
-    textIndent: 36, // 0.5 inch first-line indent
-    color: '#000000',
-  },
-  // IReference page
-  referencesHeading: {
-    fontFamily: 'Times-Bold',
-    fontSize: FONT_SIZE,
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: LINE_HEIGHT,
-    color: '#000000',
-  },
-  referenceItem: {
-    fontFamily: 'Times-Roman',
-    fontSize: FONT_SIZE,
-    textAlign: 'left',
-    marginBottom: 12,
-    lineHeight: LINE_HEIGHT,
-    // Hanging indent: paddingLeft + negative textIndent to simulate
-    paddingLeft: 36,
-    textIndent: -36,
-    color: '#000000',
-  },
-  referenceItemIEEE: {
-    fontFamily: 'Times-Roman',
-    fontSize: FONT_SIZE,
-    textAlign: 'left',
-    marginBottom: 12,
-    lineHeight: LINE_HEIGHT,
-    paddingLeft: 36,
-    textIndent: -36,
-    color: '#000000',
-  },
-  figureImage: {
-    marginVertical: 12,
-    maxWidth: '100%',
-  },
-  // TOC styles
-  tocTitle: {
-    fontFamily: 'Times-Bold',
-    fontSize: FONT_SIZE,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: LINE_HEIGHT,
-    color: '#000000',
-  },
-  tocEntry1: {
-    fontFamily: 'Times-Roman',
-    fontSize: FONT_SIZE,
-    marginBottom: 6,
-    lineHeight: 1.5,
-    color: '#000000',
-  },
-  tocEntry2: {
-    fontFamily: 'Times-Roman',
-    fontSize: FONT_SIZE,
-    marginBottom: 6,
-    marginLeft: 24,
-    lineHeight: 1.5,
-    color: '#000000',
-  },
-  tocEntry3: {
-    fontFamily: 'Times-Italic',
-    fontSize: FONT_SIZE,
-    marginBottom: 6,
-    marginLeft: 48,
-    lineHeight: 1.5,
-    color: '#000000',
-  },
-});
+const createPdfStyles = (style?: ResolvedDocumentStyle) => {
+  const marginTop = style ? cmToPt(style.page.marginTop) : 72;
+  const marginBottom = style ? cmToPt(style.page.marginBottom) : 72;
+  const marginLeft = style ? cmToPt(style.page.marginLeft) : 72;
+  const marginRight = style ? cmToPt(style.page.marginRight) : 72;
+  
+  // const fontFamily = style ? style.typography.fontFamily.replace(/\s/g, '') : 'Times-Roman';
+  // const fontBold = `${fontFamily}-Bold`;
+  // const fontItalic = `${fontFamily}-Italic`;
+  // const fontBoldItalic = `${fontFamily}-BoldItalic`;
+  
+  const fontSize = style ? style.typography.fontSize : 12;
+  const h1Size = style ? style.heading1.size : 12;
+  const h2Size = style ? style.heading2.size : 12;
+  const h3Size = style ? style.heading3.size : 12;
+  const fontColor = style ? style.typography.fontColor : '#000000';
+  
+  const lineSpacing = style ? style.paragraph.lineSpacing : 2;
+  const indentPt = style ? cmToPt(style.paragraph.firstLineIndent) : 36;
+  const textAlignment = style ? style.paragraph.textAlignment : 'justify';
+
+  // React PDF uses standard font families. If they provide a custom font, 
+  // it needs to be registered. For now, we map basic families.
+  // Note: we assume standard 14 fonts or previously registered fonts in React-PDF.
+  
+  return StyleSheet.create({
+    page: {
+      fontFamily: 'Times-Roman',
+      fontSize: fontSize,
+      paddingTop: marginTop,
+      paddingBottom: marginBottom,
+      paddingLeft: marginLeft,
+      paddingRight: marginRight,
+      backgroundColor: '#ffffff',
+      color: fontColor,
+    },
+    pageNumberBase: {
+      position: 'absolute',
+      fontSize: fontSize,
+      fontFamily: 'Times-Roman',
+      color: fontColor,
+    },
+    coverPage: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    coverTitle: {
+      fontFamily: 'Times-Bold',
+      fontSize: fontSize,
+      textAlign: 'center',
+      marginBottom: 12,
+      color: fontColor,
+    },
+    coverText: {
+      fontFamily: 'Times-Roman',
+      fontSize: fontSize,
+      textAlign: 'center',
+      marginBottom: 8,
+      color: fontColor,
+    },
+    docTitle: {
+      fontFamily: 'Times-Bold',
+      fontSize: fontSize,
+      textAlign: 'center',
+      marginBottom: 12,
+      lineHeight: lineSpacing,
+      color: fontColor,
+    },
+    h1: {
+      fontFamily: 'Times-Bold',
+      fontSize: h1Size,
+      textAlign: (style?.heading1.alignment as any) || 'center',
+      marginBottom: 12,
+      marginTop: 12,
+      lineHeight: lineSpacing,
+      color: fontColor,
+    },
+    h2: {
+      fontFamily: 'Times-Bold',
+      fontSize: h2Size,
+      textAlign: (style?.heading2.alignment as any) || 'left',
+      marginBottom: 12,
+      marginTop: 12,
+      lineHeight: lineSpacing,
+      color: fontColor,
+    },
+    h3: {
+      fontFamily: 'Times-BoldItalic',
+      fontSize: h3Size,
+      textAlign: (style?.heading3.alignment as any) || 'left',
+      marginBottom: 12,
+      marginTop: 12,
+      lineHeight: lineSpacing,
+      color: fontColor,
+    },
+    paragraph: {
+      fontFamily: 'Times-Roman',
+      fontSize: fontSize,
+      textAlign: textAlignment as any,
+      marginBottom: 0,
+      lineHeight: lineSpacing,
+      textIndent: indentPt,
+      color: fontColor,
+    },
+    referencesHeading: {
+      fontFamily: 'Times-Bold',
+      fontSize: fontSize,
+      textAlign: 'center',
+      marginBottom: 12,
+      lineHeight: lineSpacing,
+      color: fontColor,
+    },
+    referenceItem: {
+      fontFamily: 'Times-Roman',
+      fontSize: fontSize,
+      textAlign: 'left',
+      marginBottom: 12,
+      lineHeight: lineSpacing,
+      paddingLeft: 36,
+      textIndent: -36,
+      color: fontColor,
+    },
+    referenceItemIEEE: {
+      fontFamily: 'Times-Roman',
+      fontSize: fontSize,
+      textAlign: 'left',
+      marginBottom: 12,
+      lineHeight: lineSpacing,
+      paddingLeft: 36,
+      textIndent: -36,
+      color: fontColor,
+    },
+    figureImage: {
+      marginVertical: 12,
+      maxWidth: '100%',
+    },
+    tocTitle: {
+      fontFamily: 'Times-Bold',
+      fontSize: fontSize,
+      textAlign: 'center',
+      marginBottom: 24,
+      lineHeight: lineSpacing,
+      color: fontColor,
+    },
+    tocEntry1: {
+      fontFamily: 'Times-Roman',
+      fontSize: fontSize,
+      marginBottom: 6,
+      lineHeight: 1.5,
+      color: fontColor,
+    },
+    tocEntry2: {
+      fontFamily: 'Times-Roman',
+      fontSize: fontSize,
+      marginBottom: 6,
+      marginLeft: 24,
+      lineHeight: 1.5,
+      color: fontColor,
+    },
+    tocEntry3: {
+      fontFamily: 'Times-Italic',
+      fontSize: fontSize,
+      marginBottom: 6,
+      marginLeft: 48,
+      lineHeight: 1.5,
+      color: fontColor,
+    },
+  });
+};
+
 
 // ─── Render AST nodes to React PDF ──────────────────────────────────────────
 
@@ -183,12 +202,10 @@ const renderInlineNodes = (nodes: InlineNode[], references: IReference[], format
         const idx = refIndexMap.get(ref.id);
         const citationText = formatter.formatInTextCitation(ref, idx, lang);
         if (citationText) {
-          // Keep this as a string if we want it to flow cleanly, but it has no formatting,
-          // so we can just return the string directly.
-          return citationText;
+          return `${citationNode.text || ""} ${citationText}`;
         }
       }
-      return null;
+      return citationNode.text || "";
     }
 
     if (node.type === 'hyperlink') {
@@ -311,7 +328,12 @@ const buildPdfDocument = (
   startNumberingOnCover: boolean = true,
   generateTOC: boolean = false,
   formatId?: string,
+  documentStyle?: ResolvedDocumentStyle,
 ): React.ReactElement<any> => {
+  const styles = createPdfStyles(documentStyle);
+  const marginLeft = documentStyle ? cmToPt(documentStyle.page.marginLeft) : 72;
+  const marginRight = documentStyle ? cmToPt(documentStyle.page.marginRight) : 72;
+
   const isIEEE = formatter.sortMode === 'appearance';
   const isUpel = formatId === 'upel';
   
@@ -323,11 +345,11 @@ const buildPdfDocument = (
     topBottomStyle = { bottom: 36 }; // 0.5 inch from bottom
   }
 
-  let leftRightStyle: any = { right: MARGIN };
+  let leftRightStyle: any = { right: marginRight };
   if (position.includes('center')) {
     leftRightStyle = { left: 0, right: 0, textAlign: 'center' };
   } else if (position.includes('left')) {
-    leftRightStyle = { left: MARGIN };
+    leftRightStyle = { left: marginLeft };
   }
 
   const dynamicPageNumberStyle = [styles.pageNumberBase, topBottomStyle, leftRightStyle];
@@ -604,9 +626,10 @@ export const exportToPdf = async (
   startNumberingOnCover: boolean = true,
   generateTOC: boolean = false,
   formatId?: string,
+  documentStyle?: ResolvedDocumentStyle,
 ) => {
   try {
-    const docElement = buildPdfDocument(text, references, formatter, lang, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, formatId);
+    const docElement = buildPdfDocument(text, references, formatter, lang, coverPage, pageNumberPosition, startNumberingOnCover, generateTOC, formatId, documentStyle);
     const pdfInstance = pdf(docElement);
     const blob = await pdfInstance.toBlob();
 
