@@ -29,16 +29,15 @@ export const checkRateLimit = async (
   if (!lastGenerationDate && userId) {
     try {
       const { data, error } = await supabase
-        .from('GenerateDocument')
-        .select('lastGenerate')
-        .eq('idusuario', userId)
-        .order('lastGenerate', { ascending: false })
+        .from('users')
+        .select('last_generation')
+        .eq('id', userId)
         .limit(1)
         .single()
       
-      if (!error && data?.lastGenerate) {
-        lastGenerationDate = new Date(data.lastGenerate)
-        localStorage.setItem(USER_KEY, data.lastGenerate)
+      if (!error && data?.last_generation) {
+        lastGenerationDate = new Date(data.last_generation)
+        localStorage.setItem(USER_KEY, data.last_generation)
       }
     } catch (e) {
       console.error('Error fetching rate limit from db', e)
@@ -65,26 +64,18 @@ export const updateRateLimit = async (userId: string | undefined) => {
 
   if (userId) {
     try {
-      // Buscar si existe un registro para actualizarlo, sino insertarlo
-      const { data: existing } = await supabase
-        .from('GenerateDocument')
-        .select('id')
-        .eq('idusuario', userId)
-        .limit(1)
-        .single()
+      const { error } = await supabase
+        .from('users')
+        .update({ last_generation: now })
+        .eq('id', userId)
         
-      if (existing) {
-        await supabase
-          .from('GenerateDocument')
-          .update({ lastGenerate: now })
-          .eq('id', existing.id)
+      if (error) {
+        console.error('Supabase error updating rate limit:', error)
       } else {
-        await supabase
-          .from('GenerateDocument')
-          .insert([{ idusuario: userId, lastGenerate: now }])
+        console.log('Successfully updated last_generation in DB to', now)
       }
     } catch (e) {
-      console.error('Error updating rate limit in db', e)
+      console.error('Exception updating rate limit in db', e)
     }
   }
 }
