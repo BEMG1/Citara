@@ -44,11 +44,6 @@ const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   const applyStyle = (newStyle: string) => {
     setStyleState(newStyle);
-    if (newStyle.toLowerCase() === 'dani') {
-      document.body.classList.add('theme-dani');
-    } else {
-      document.body.classList.remove('theme-dani');
-    }
   };
 
   const setStyle = (newStyle: string) => {
